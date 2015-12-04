@@ -1,2 +1,9 @@
-# FQF
+
+## FQF: FastQforward implementation of UGP pipeline version: 0.0.1
+
 FastQForward implementation of the of the UGP/UCGD pipeline
+
+FQF is a NGS pipeline created for the
+Utah Genome Project (UGP) and The Utah Center for Genetic Discovery (UCGD)
+
+Additional Protocol documentation [here](http://weatherby.genetics.utah.edu/UGP/wiki/index.php/UGP_Variant_Protocol)

@@ -1,0 +1,93 @@
+#!/usr/bin/env perl
+# project_config
+use warnings;
+use strict;
+use Getopt::Long;
+use Carp;
+use Config::Std;
+use IO::Dir;
+
+my $usage = <<"EOU";
+
+Synopsis:
+
+    ./project_config --fasta_dir <string> --workers <int> --tmp <string> --log <string> --new_config <string>
+    ./project_config -fd /data2/srynearson/gcat -w 80 -t /tmp -l report.log -nc gcat_run.cfg
+
+Description:
+
+    General utility script to help create new configure files per project.
+    *Will not modify software options*
+
+Required options:
+
+    --fastq_dir, -fd    Path to location of fastq files.
+    --ugp_id, -u        Project id to add to config file.
+
+Additional options:
+
+    --config, -cfg      Configure file you would like to build from [default UGPp.cfg].
+    --log, -l           Log file name for a given run.  [defaults to ugp_id-log.txt]
+    --new_config, -nc   Name of the new config file generated. [default tmp.cfg]
+    --output_dir, -o    Path to write output files to.  [default fastq_dir]
+    --workers, -w       Number of CPUs to distribute work across. [default 0]
+
+EOU
+
+my (
+    $fq_dir, $config, $n_config,
+    $output, $log,    $help, $ugp_id, $workers
+);
+GetOptions(
+    "fastq_dir|fd=s"    => \$fq_dir,
+    "config|cfg=s"      => \$config,
+    "new_config|nc=s"   => \$n_config,
+    "output_dir|o=s"    => \$output,
+    "log|l=s"           => \$log,
+    "help|h"            => \$help,
+    "ugp_id|u=s"        => \$ugp_id,
+    "workers|w=i"       => \$workers,
+);
+croak "fastq directory, ugp_id required\n$usage"
+unless ( $fq_dir and $ugp_id );
+croak $usage if ($help);
+
+# set or add default;
+$config   //= '../data/UGPp.cfg';
+$n_config //= 'tmp.cfg';
+
+my $FH = IO::Dir->new($fq_dir) or croak "Fastq directory or file not correct\n";
+my @fq_check;
+foreach my $file ( $FH->read ) {
+    chomp $file;
+    next unless ( $file =~ /gz$/ );
+    push @fq_check, $file;
+}
+$FH->close;
+
+# default config which comes with UGPp and build config hash.
+$config //= '../data/UGPp.cfg';
+read_config $config => my %config;
+
+## Build the sections of the config file ##
+# add data directory
+$config{main}{data} = $fq_dir;
+
+# configure workers based on how many fq files
+$config{main}{workers} = $workers;
+
+# add output dir if supplyed
+$config{main}{output} = $output if $output;
+
+# add log file if supplyed
+$config{main}{'log'} = $log if $log;
+
+# some UGP specific additions
+$config{main}{ugp_id} = "UGPp_$ugp_id";
+
+# write file
+write_config %config, $n_config;
+
+print "Please review software settings.\n";
+print "Done!\n";
+
