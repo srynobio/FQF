@@ -69,7 +69,7 @@ sort_header_vcf() if $opts{merge_sort_header};
 
 sub filter_vcf {
 
-    my @kept;
+    open( my $OUTPUT, '>>', $opts{output} );
     while (<>) {
         my $line = $_;
         chomp $line;
@@ -104,23 +104,17 @@ sub filter_vcf {
                 }
             }
         }
-        push @kept, $line if $line;
+        say $OUTPUT $line if $line;
     }
-    open( my $OUTPUT, '>>', $opts{output} );
-    map { say $OUTPUT $_ } @kept;
+    close $OUTPUT;
 }
 
 ## -------------------------------------------------------- ##
 
-sub sort_vcf {
-    my $file = $opts{input};
-    system("grep -v '^#' $file | sort -T $opts{temp} -k1,1 -k2,2n > $opts{output}");
-}
+#sub sort_vcf {
+#    my $file = $opts{input};
+#    system("grep -v '^#' $file | sort -T $opts{temp} -k1,1 -k2,2n > $opts{output}");
+#}
 
 ## -------------------------------------------------------- ##
 
-sub sort_header_vcf {
-
-}
-
-## -------------------------------------------------------- ##

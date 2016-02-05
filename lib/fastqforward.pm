@@ -52,12 +52,14 @@ sub fastqforward {
 
     my $config = $self->class_config;
     my $opts   = $self->tool_options('fqf');
-    my $files  = $self->file_retrieve;
+    my $files  = $self->file_retrieve('uncompress');
+    #my $files  = $self->file_retrieve('nantomics_bam2fastq');
 
     my @seq_files;
     foreach my $file ( @{$files} ) {
         chomp $file;
-        next unless ( $file =~ /(gz$|bz2$|fastq$|fq$)/ );
+        next unless ( $file =~ /(fastq$|fq$)/ );
+        #next unless ( $file =~ /(gz$|bz2$|fastq$|fq$)/ );
         push @seq_files, $file;
     }
 

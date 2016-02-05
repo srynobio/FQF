@@ -1,0 +1,11 @@
+## README
+## Commands to create ensembl + refseq exon region file
+## ensembl current is GRCh38, but I found and used GRCh37
+
+wget ftp://ftp.ncbi.nlm.nih.gov/genomes/H_sapiens/ARCHIVE/BUILD.37.3/GFF/ref_GRCh37*level.gff3.gz
+wget http://ftp.ensembl.org/pub/grch37/release-82/gff3/homo_sapiens/Homo_sapiens.GRCh37.82.gff3.gz
+grep -v '^#' Homo_sapiens.GRCh37.82.gff3 |perl -lane 'if ($F[2] eq 'exon') { print $_ }' > Homo_sapiens.GRCh37.82.exon.gff3 
+grep -v '^#' Updated.ref_GRCh37.sorted.gff |perl -lane 'if ($F[2] eq 'exon') { print $_ }' > Updated.ref_GRCh37.exon.gff3
+cat Homo_sapiens.GRCh37.82.exon.gff3 Updated.ref_GRCh37.exon.gff3 |sort -k1,1 -k4,4n > both.exon.sorted.gff3 
+bedtools merge -i both.exon.sorted.gff3 > refseq_ensembl_GRCh37.bed
+perl -lane '$start = $F[1] - 20; $end = $F[2] + 20; print "$F[0]:$start-$end"' refseq_ensembl_GRCh37.bed > refseq_ensembl_GRCh37.list

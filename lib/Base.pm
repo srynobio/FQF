@@ -13,7 +13,7 @@ use feature 'say';
 
 has VERSION => (
     is      => 'ro',
-    default => sub { '0.0.1' },
+    default => sub { '1.0.0' },
 );
 
 has commandline => (

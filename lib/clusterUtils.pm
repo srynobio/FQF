@@ -23,14 +23,14 @@ sub ucgd {
 
     my $sbatch = <<"EOM";
 #!/bin/bash
-#SBATCH -t 72:00:00
+#SBATCH -t 336:00:00
 #SBATCH -N 1
 #SBATCH -A ucgd-kp
 #SBATCH -p ucgd-kp
 #SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/bashrc
-# source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
+source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
+module load fastqforward
 
 # clean up before start
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
@@ -56,7 +56,7 @@ sub fqf {
 
     my ( @cmds, @copies );
     foreach my $ele ( @{$commands} ) {
-        push @cmds, "$ele &";
+        push @cmds, "$ele";
     }
     my $cmdNode = join( "\n", @cmds );
 
@@ -68,13 +68,17 @@ sub fqf {
 #SBATCH -p ucgd-kp
 #SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/bashrc
+source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
+source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
 module load fastqforward
 
-# source /uufs/chpc.utah.edu/common/home/u0413537/.bashrc
+# clean all shared memory.
+/uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
 
 # clean up before start
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
+
+export TMPDIR=/scratch/local
 
 $cmdNode
 
@@ -82,6 +86,7 @@ wait
 
 # clean up after finish.
 find /scratch/local/ -user u0413537 -exec rm -rf {} \\; 
+source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_postrun
 
 EOM
     return $sbatch;
@@ -106,6 +111,7 @@ sub guest {
 #!/bin/bash
 #SBATCH -t 72:00:00
 #SBATCH -N 1
+#SBATCH -x kp[168-195,200-227]
 #SBATCH -A owner-guest
 #SBATCH -p kingspeak-guest
 #SBATCH -o $step\_%A.out 

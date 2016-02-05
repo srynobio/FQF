@@ -27,8 +27,11 @@ sub bam2fastq {
         chomp $file;
         next unless ( $file =~ /bam$/ );
 
-        my $cmd = sprintf( "%s/bam2fastq.pl %s %s",
-            $config->{Bam2Fastq}, $file, $opts->{command_string} );
+        my $cmd = sprintf(
+            "%s/bam2fastq.pl %s %s -c %s %s",
+            $config->{bam2fastq}, $file, $opts->{command_string},
+            $opts->{cpu}, $self->output
+        );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
@@ -60,18 +63,53 @@ sub nantomics_bam2fastq {
         my $filename = $file->{name};
         ( my $id, undef ) = split /--/, $filename;
 
-        my $pair1 = $file->{path} . $id . '_1.fastq.gz';
-        my $pair2 = $file->{path} . $id . '_2.fastq.gz';
+        my $pair1 = $file->{path} . $id . '_1.fastq';
+        my $pair2 = $file->{path} . $id . '_2.fastq';
 
         my $cmd = sprintf(
             "%s/bam2fastq.pl %s %s -fq %s -fq2 %s",
-            $config->{Bam2Fastq}, $bam, $opts->{command_string},
-            $pair1, $pair2,
+            $config->{bam2fastq}, $bam, $opts->{command_string},
+            $pair1, $pair2
         );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
     return;
+}
+
+##-----------------------------------------------------------
+
+sub uncompress {
+    my $self = shift;
+    $self->pull;
+
+    my $config = $self->class_config;
+    my $opts   = $self->tool_options('uncompress');
+    my $fastqs = $self->file_retrieve('fastqc_run');
+
+    my $source = $opts->{source};
+
+    my @cmds;
+    if ( $source eq 'bam2fastq' ) {
+        foreach my $file ( @{$fastqs} ) {
+            chomp $file;
+            next unless ( $file =~ /gz$/ );
+            my $cmd = sprintf( "pbgzip -d -p 24 %s", $file );
+            push @cmds, $cmd;
+        }
+    }
+    elsif ( $source eq 'other' ) {
+        foreach my $file ( @{$fastqs} ) {
+            chomp $file;
+            next unless ( $file =~ /gz$/ );
+            ( my $output = $file ) =~ s/gz/fastq/;
+            $self->file_store($output);
+
+            my $cmd = sprintf( "gzip -d -c %s > %s", $file, $output );
+            push @cmds, $cmd;
+        }
+    }
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------

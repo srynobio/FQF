@@ -265,8 +265,6 @@ sub node_setup {
           : ( $jpn = '4' );
     }
     else {
-
-        #$jpn = $opts->{jpn} || scalar @commands;
         $jpn = $opts->{jpn} || '1';
     }
 
@@ -283,7 +281,7 @@ sub _cluster {
     my @stack    = values %{ $self->{bundle} };
     my @commands = map { @$_ } @stack;
 
-    return if ( !@commands );
+    return if ( ! @commands );
 
     # jobs per node per step
     my $jpn = $self->config->{ $sub[0] }->{jpn} || '1';
@@ -348,9 +346,9 @@ sub _cluster {
 
     # check the status of current sbatch jobs
     # before moving on.
-    $self->_wait_all_jobs($node);
+    $self->_wait_all_jobs($node, $sub[0]);
     $self->_error_check;
-    `rm launch.index`;
+    unlink('launch.index');
 
     delete $self->{bundle};
     $self->LOG( 'finish',   $sub[0] );
@@ -363,9 +361,8 @@ sub _cluster {
 sub _jobs_status {
     my ( $self, $node ) = @_;
 
-    ## Check which nodes to use.
-    ( $node eq 'ucgd' ) ? ( $node = 'ucgd-kp' ) : ( $node = 'owner-guest' );
-    my $state = `squeue -A $node -u u0413537| grep -v JOBID  | wc -l`;
+    my $partition = $self->_which_node($node);
+    my $state = `squeue -A $partition -u u0413537 -h | wc -l`;
 
     if ( $state >= $self->qstat_limit ) {
         return 'wait';
@@ -377,18 +374,28 @@ sub _jobs_status {
 
 ##-----------------------------------------------------------
 
+## method used when using preemptable nodes.
+
 sub _relaunch {
     my $self = shift;
 
     my @error = `grep error *.out`;
+    chomp @error;
     if ( !@error ) { return }
 
     my %relaunch;
+    my @error_files;
     foreach my $cxl (@error) {
         chomp $cxl;
         next unless ( $cxl =~ /PREEMPTION/ );
 
         my @ids = split /\s/, $cxl;
+
+        ## collect error files.
+        my ( $sbatch, undef ) = split /:/, $ids[0];
+        push @error_files, $sbatch;
+
+        ## record launch id.
         $relaunch{ $ids[4] }++;
     }
 
@@ -400,32 +407,80 @@ sub _relaunch {
         my @parts = split /\s/, $line;
 
         ## find in lookup and dont re-relaunch.
-        if ( $relaunch{ $parts[-1] } and not $relaunch{ $parts[0] } ) {
+        if ( $relaunch{ $parts[-1] } ) {
             print $FH "$parts[0]\t";
             system "sbatch $parts[0] >> launch.index";
-
-            ## add to relaunch
-            $relaunch{ $parts[0] }++;
             $self->WARN("Relaunching job $parts[0]");
         }
     }
+
+    ## remove error files.
+    unlink @error_files;
 }
 
 ##-----------------------------------------------------------
 
 sub _wait_all_jobs {
-    my ( $self, $node ) = @_;
+    my ( $self, $node, $sub) = @_;
 
-    ## Check which nodes to use.
-    ( $node eq 'ucgd' ) ? ( $node = 'ucgd-kp' ) : ( $node = 'owner-guest' );
-
-    my @jobs = `squeue -A $node -u u0413537 | grep -v JOBID`;
+    my $process;
     do {
         sleep(60);
         $self->_relaunch;
         sleep(60);
-        @jobs = `squeue -A $node -u u0413537 | grep -v JOBID`;
-    } while (@jobs);
+        $process = $self->_process_check( $node, $sub );
+    } while ($process);
+}
+
+##-----------------------------------------------------------
+
+sub _process_check {
+    my ( $self, $node, $sub) = @_;
+    my $partition = $self->_which_node($node);
+
+    my @processing = `squeue -A $partition -u u0413537 -h --format=%30j |grep $sub`;
+    chomp @processing;
+    if ( ! @processing ) { return 0 }
+    
+    ## check run specific processing.
+    ## make lookup of what is running.
+    my %running;
+    foreach my $active ( @processing ) {
+        chomp $active;
+        $active =~ s/\s+//g;
+        $running{$active}++;
+    }
+
+    ## check what was launched.
+    open(my $LAUNCH, '<', 'launch.index') 
+        or $self->ERROR("Can't find needed launch.index file.");
+
+    my $current = 0;
+    foreach my $launched ( <$LAUNCH> ) {
+        chomp $launched;
+        my @result = split /\t/, $launched;
+
+        if ( $running{$result[0]} ) {
+            $current++;
+        }
+    }
+    ($current) ? (return 1) : (return 0);
+}
+
+##-----------------------------------------------------------
+
+sub _which_node {
+    my ( $self, $node ) = @_;
+
+    if ( $node eq 'ucgd' ) {
+        return 'ucgd-kp';
+    }
+    elsif ( $node eq 'fqf' ) {
+        return 'ucgd-kp';
+    }
+    elsif ( $node eq 'guest' ) {
+        return 'owner-guest';
+    }
 }
 
 ##-----------------------------------------------------------
@@ -440,6 +495,5 @@ sub _error_check {
 }
 
 ##-----------------------------------------------------------
-
 
 1;

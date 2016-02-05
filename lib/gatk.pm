@@ -70,49 +70,72 @@ sub CombineGVCF {
     # large collection of gvcfs
     if ( scalar @iso < 200 ) { return }
 
-    my $split = $self->commandline->{split_combine};
-
     my @cmds;
-    if ( $self->commandline->{split_combine} ) {
-        my @var;
-        push @var, [ splice @iso, 0, $split ] while @iso;
 
-        my $id;
-        foreach my $split (@var) {
-            my $variants = join( " --variant ", @$split );
+    my $variants = join( " --variant ", @iso );
 
-            $id++;
-            my $output =
-              $self->output . $config->{ugp_id} . ".$id.mergeGvcf.vcf";
-            $self->file_store($output);
+    foreach my $region ( @{ $self->intervals } ) {
 
-            my $cmd = sprintf(
-                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
-                  . " -T CombineGVCFs -R %s "
-                  . "--disable_auto_index_creation_and_locking_when_reading_rods "
-                  . "--variant %s -o %s",
-                $opts->{xmx}, $opts->{gc_threads}, $config->{gatk},
-                $config->{fasta}, $variants, $output );
+        my @parts = split /\//, $region;
+        my ( $chr, undef ) = split /_/, $parts[-1];
 
-            push @cmds, $cmd;
-        }
-    }
-    else {
-        my $variants = join( " --variant ", @iso );
-
-        my $output = $self->output . $config->{ugp_id} . '_final_mergeGvcf.vcf';
+        my $output = $self->output . "$chr\_mergeGvcf.vcf";
         $self->file_store($output);
 
         my $cmd = sprintf(
-                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+            "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
               . " -T CombineGVCFs -R %s "
               . "--disable_auto_index_creation_and_locking_when_reading_rods "
-              . "--variant %s -o %s",
+              . "--variant %s -L %s -o %s",
             $opts->{xmx}, $opts->{gc_threads}, $config->{gatk},
-            $config->{fasta}, $variants, $output );
+            $config->{fasta}, $variants, $region, $output );
 
         push @cmds, $cmd;
     }
+    $self->bundle( \@cmds );
+}
+
+##-----------------------------------------------------------
+
+sub CatVariants_CombineGVCF {
+    my $self = shift;
+    $self->pull;
+
+    my $config = $self->class_config;
+
+    my $vcf = $self->file_retrieve('CombineGVCF');
+    my @iso = grep { /mergeGvcf.vcf/ } @{$vcf};
+
+    my %indiv;
+    my @cmds;
+    foreach my $file (@iso) {
+        chomp $file;
+
+        my $frags = $self->file_frags($file);
+        my $path  = $frags->{path};
+
+        my $key = $frags->{parts}[0];
+        push @{ $indiv{$key} }, $file;
+    }
+
+    # put the file in correct order.
+    my @ordered_list;
+    for ( 1 .. 22, 'X', 'Y', 'MT' ) {
+        my $chr = 'chr' . $_;
+        push @ordered_list, $indiv{$chr}->[0];
+    }
+
+    my $variant = join( " -V ", @ordered_list );
+    $variant =~ s/^/-V /;
+
+    my $output = $self->output . $config->{fqf_id} . '_cat_combineGVCF.vcf';
+    $self->file_store($output);
+
+    my $cmd = sprintf(
+        "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
+          . "--assumeSorted  %s -out %s",
+        $config->{gatk}, $config->{fasta}, $variant, $output );
+    push @cmds, $cmd;
     $self->bundle( \@cmds );
 }
 
@@ -125,20 +148,9 @@ sub GenotypeGVCF {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('GenotypeGVCF');
 
-    my @gcated;
-    my $data = $self->file_retrieve( 'CombineGVCF', 'exact' );
-    if ($data) {
-        @gcated = grep { /mergeGvcf/ } @{$data};
-
-        # if gCat files given at command line.
-        unless (@gcated) {
-            @gcated = grep { /vcf$/ } @{$data};
-        }
-    }
-    else {
-        $data = $self->file_retrieve( 'fastqforward', 'exact' );
-        @gcated = grep { /vcf$/ } @{$data};
-    }
+    my $files =
+      $self->file_retrieve('fastqforward');    ##CatVariants_CombineGVCF');
+    my @gvcfs = grep { $_ =~ /g.vcf/ } @{$files};
 
     # collect the 1k backgrounds.
     my (@backs);
@@ -158,18 +170,24 @@ sub GenotypeGVCF {
 
     # the original backgrounds and the gvcf files
     my $back_variants = join( " --variant ", @backs );
-    my $input         = join( " --variant ", @gcated );
+    my $input         = join( " --variant ", @gvcfs );
 
     my $intv = $self->intervals;
     my @cmds;
     foreach my $region ( @{$intv} ) {
-        ( my $output = $region ) =~ s/_file.list/_genotyped.vcf/;
+
+        my @split = split /\//, $region;
+        my ( $chr, undef ) = split /_/, $split[-1];
+
+        my $file_parts = $self->file_frags($region);
+
+        my $output = $file_parts->{path} . $chr . '_genotyped.vcf';
         $self->file_store($output);
 
         my $cmd;
         if ($back_variants) {
             $cmd = sprintf(
-                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods --num_threads %s "
                   . "--variant %s --variant %s -L %s -o %s",
@@ -181,7 +199,7 @@ sub GenotypeGVCF {
         }
         else {
             $cmd = sprintf(
-                    "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--num_threads %s --variant %s -L %s -o %s",
@@ -202,9 +220,8 @@ sub CatVariants_Genotype {
     $self->pull;
 
     my $config = $self->class_config;
-
-    my $vcf = $self->file_retrieve('GenotypeGVCF');
-    my @iso = grep { /genotyped.vcf$/ } @{$vcf};
+    my $vcf    = $self->file_retrieve('GenotypeGVCF');
+    my @iso    = grep { /genotyped.vcf$/ } @{$vcf};
 
     my %indiv;
     my $path;
@@ -229,7 +246,7 @@ sub CatVariants_Genotype {
     my $variant = join( " -V ", @ordered_list );
     $variant =~ s/^/-V /;
 
-    my $output = $self->output . $config->{ugp_id} . '_cat_genotyped.vcf';
+    my $output = $self->output . $config->{fqf_id} . '_cat_genotyped.vcf';
     $self->file_store($output);
 
     my $cmd = sprintf(
@@ -238,8 +255,6 @@ sub CatVariants_Genotype {
         $config->{gatk}, $config->{fasta}, $variant, $output );
     push @cmds, $cmd;
     $self->bundle( \@cmds );
-
-    #$self->bundle(\$cmd);
 }
 
 ##-----------------------------------------------------------
@@ -254,11 +269,11 @@ sub VariantRecalibrator_SNP {
     my $genotpd = $self->file_retrieve('CatVariants_Genotype');
 
     my $recalFile =
-      '-recalFile ' . $self->output . $config->{ugp_id} . '_snp_recal';
+      '-recalFile ' . $self->output . $config->{fqf_id} . '_snp_recal';
     my $tranchFile =
-      '-tranchesFile ' . $self->output . $config->{ugp_id} . '_snp_tranches';
+      '-tranchesFile ' . $self->output . $config->{fqf_id} . '_snp_tranches';
     my $rscriptFile =
-      '-rscriptFile ' . $self->output . $config->{ugp_id} . '_snp_plots.R';
+      '-rscriptFile ' . $self->output . $config->{fqf_id} . '_snp_plots.R';
 
     $self->file_store($recalFile);
     $self->file_store($tranchFile);
@@ -296,11 +311,11 @@ sub VariantRecalibrator_INDEL {
     my $genotpd = $self->file_retrieve('CatVariants_Genotype');
 
     my $recalFile =
-      '-recalFile ' . $self->output . $config->{ugp_id} . '_indel_recal';
+      '-recalFile ' . $self->output . $config->{fqf_id} . '_indel_recal';
     my $tranchFile =
-      '-tranchesFile ' . $self->output . $config->{ugp_id} . '_indel_tranches';
+      '-tranchesFile ' . $self->output . $config->{fqf_id} . '_indel_tranches';
     my $rscriptFile =
-      '-rscriptFile ' . $self->output . $config->{ugp_id} . '_indel_plots.R';
+      '-rscriptFile ' . $self->output . $config->{fqf_id} . '_indel_plots.R';
 
     $self->file_store($recalFile);
     $self->file_store($tranchFile);
@@ -410,7 +425,9 @@ sub CombineVariants {
     my @app_ind = map { "--variant $_ " } @{$indel_files};
 
     my $output =
-      $config->{output} . $config->{ugp_id} . "_Final+Backgrounds.vcf";
+        $config->{output}
+      . $config->{fqf_id}
+      . "_Final+Backgrounds+Longevity.vcf";
     $self->file_store($output);
 
     my @cmds;
