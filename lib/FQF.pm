@@ -481,6 +481,9 @@ sub _which_node {
     elsif ( $node eq 'guest' ) {
         return 'owner-guest';
     }
+    elsif ( $node eq 'fqf_guest' ) {
+        return 'owner-guest';
+    }
 }
 
 ##-----------------------------------------------------------

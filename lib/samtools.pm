@@ -14,11 +14,18 @@ sub samtools_index {
     $self->pull;
 
     my $config = $self->class_config;
+    my $files = $self->file_retrieve('fastqforward');
 
-    my $cmd =
-      sprintf( "%s/samtools faidx %s\n", $config->{samtools},
-        $config->{fasta} );
-    $self->bundle( \$cmd );
+    my @cmds;
+    foreach my $file ( @{$files} ) {
+        chomp $file;
+        next unless ( $file =~ /bam$/ );
+
+        my $cmd =
+          sprintf( "%s/samtools index %s", $config->{samtools}, $file );
+        push @cmds, $cmd;
+    }
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
