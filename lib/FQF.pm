@@ -438,10 +438,11 @@ sub _process_check {
     my ( $self, $node, $sub) = @_;
     my $partition = $self->_which_node($node);
 
-    my @processing = `squeue -A $partition -u u0413537 -h --format=%30j |grep $sub`;
+    my @processing = `squeue -A $partition -u u0413537 -h --format=%A`;
+    #my @processing = `squeue -A $partition -u u0413537 -h --format=%30j |grep $sub`;
     chomp @processing;
-    if ( ! @processing ) { return 0 }
-    
+    if ( !@processing ) { return 0 }
+
     ## check run specific processing.
     ## make lookup of what is running.
     my %running;
@@ -458,9 +459,10 @@ sub _process_check {
     my $current = 0;
     foreach my $launched ( <$LAUNCH> ) {
         chomp $launched;
-        my @result = split /\t/, $launched;
+        my @result = split /\s+/, $launched;
 
-        if ( $running{$result[0]} ) {
+        if ( $running{$result[-1]} ) {
+            #if ( $running{$result[0]} ) {
             $current++;
         }
     }
@@ -472,16 +474,13 @@ sub _process_check {
 sub _which_node {
     my ( $self, $node ) = @_;
 
-    if ( $node eq 'ucgd' ) {
+    if ( $node =~ /\bucgd\b/ ) {
         return 'ucgd-kp';
     }
-    elsif ( $node eq 'fqf' ) {
+    elsif ( $node =~ /b\fqf\b/ ) {
         return 'ucgd-kp';
     }
-    elsif ( $node eq 'guest' ) {
-        return 'owner-guest';
-    }
-    elsif ( $node eq 'fqf_guest' ) {
+    elsif ( $node =~ /(guest|fqf_guest|fqf_ember|ember_guest)/ ) {
         return 'owner-guest';
     }
 }
