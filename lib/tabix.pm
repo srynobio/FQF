@@ -22,8 +22,7 @@ sub bgzip {
     $self->file_store($output_file);
 
     my $cmd = sprintf( "%s/bgzip -c %s > %s",
-        $config->{tabix}, $combine_file->[0], $output_file 
-    );
+        $config->{tabix}, $combine_file->[0], $output_file );
     $self->bundle( \$cmd );
 }
 

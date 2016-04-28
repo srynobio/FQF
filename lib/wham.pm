@@ -34,7 +34,7 @@ sub wham_graphing {
 
     my $config = $self->class_config;
     my $opts   = $self->tool_options('wham_graphing');
-    my $files  = $self->file_retrieve('fastqforward');
+    my $files  = $self->file_retrieve('fastq2bam');
 
     my $skip_ids = $self->seqid_skip;
 
@@ -52,7 +52,8 @@ sub wham_graphing {
         ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
 
         my $cmd = sprintf( "%s/WHAM-GRAPHENING -a %s -k -x %s -f %s -e %s > %s",
-            $config->{wham}, $config->{fasta}, $threads, $bam, $skip_ids, $output );
+            $config->{wham}, $config->{fasta}, $threads, $bam, $skip_ids,
+            $output );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
@@ -97,10 +98,6 @@ sub wham_sort {
 
     my $output = $config->{output} . $config->{fqf_id} . "_WHAM.filtered.vcf";
     $self->file_store($output);
-
-    #my $input = $files->[0];
-    #( my $output = $input ) =~ s/_filtered.WHAM.vcf/_filtered_sorted.WHAM.vcf/;
-    #$self->file_store($output);
 
     my $joined = join( " ", @{$files} );
 
@@ -192,7 +189,7 @@ sub wham_genotype {
     my $config    = $self->class_config;
     my $opts      = $self->tool_options('wham_genotype');
     my $files     = $self->file_retrieve('wham_splitter');
-    my $bam_files = $self->file_retrieve('fastqforward');
+    my $bam_files = $self->file_retrieve('fastq2bam');
 
     my $join_bams = join( ",", @{$bam_files} );
     my $skip_ids = $self->seqid_skip;
@@ -274,6 +271,42 @@ sub wham_genotype_cat {
 }
 
 ##-----------------------------------------------------------
+
+sub wham_bgzip {
+    my $self = shift;
+    $self->pull;
+
+    my $config = $self->class_config;
+    my $opts   = $self->tool_options('bgzip');
+
+    my $combine_file = $self->file_retrieve('wham_genotype_cat');
+    my $output_file  = "$combine_file->[0]" . '.gz';
+
+    $self->file_store($output_file);
+
+    my $cmd = sprintf( "%s/bgzip -c %s > %s",
+        $config->{tabix}, $combine_file->[0], $output_file );
+    $self->bundle( \$cmd );
+}
+
+##-----------------------------------------------------------
+
+sub wham_tabix {
+    my $self = shift;
+    $self->pull;
+
+    my $config = $self->class_config;
+    my $opts   = $self->tool_options('tabix');
+
+    my $combine_file = $self->file_retrieve('wham_bgzip');
+
+    my $cmd =
+      sprintf( "%s/tabix -p vcf %s", $config->{tabix}, $combine_file->[0] );
+    $self->bundle( \$cmd );
+}
+
+##-----------------------------------------------------------
+
 1;
 
 __DATA__

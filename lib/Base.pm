@@ -90,6 +90,25 @@ has individuals => (
 #---------------------- METHODS ----------------------------
 #-----------------------------------------------------------
 
+sub BUILD {
+    my $self = shift;
+
+    ## environmental variables to launch to
+    $ENV{LSBATCH} = '/uufs/lonepeak.peaks/sys/pkg/slurm/std/bin/sbatch';
+    $ENV{ASBATCH} = '/uufs/ash.peaks/sys/pkg/slurm/std/bin/sbatch';
+    $ENV{KSBATCH} = '/uufs/kingspeak.peaks/sys/pkg/slurm/std/bin/sbatch';
+    $ENV{SSBATCH} = '/uufs/scrubpeak.peaks/sys/pkg/slurm/std/bin/sbatch';
+    $ENV{TSBATCH} = '/uufs/tangent.peaks/sys/pkg/slurm/std/bin/sbatch';
+
+    $ENV{ASINFO} = '/uufs/ash.peaks/sys/pkg/slurm/std/bin/sinfo';
+    $ENV{LSINFO} = '/uufs/lonepeak.peaks/sys/pkg/slurm/std/bin/sinfo';
+    $ENV{TSINFO} = '/uufs/tangent.peaks/sys/pkg/slurm/std/bin/sinfo';
+    $ENV{KSINFO} = '/uufs/kingspeak.peaks/sys/pkg/slurm/std/bin/sinfo';
+    $ENV{SSINFO} = '/uufs/scrubpeak.peaks/sys/pkg/slurm/std/bin/sinfo';
+}
+
+#-----------------------------------------------------------
+
 sub _build_data_files {
     my $self = shift;
 
@@ -218,6 +237,26 @@ sub file_retrieve {
 
 #-----------------------------------------------------------
 
+sub file_exist {
+    my ( $self, $filename ) = @_;
+
+    my $exist = 0;
+    if ( $filename =~ /\// ) {
+        if ( -e $filename and -s $filename ) {
+            $exist = 1;
+        }
+    }
+    else {
+        my $path_file = $self->output . $filename;
+        if ( -e $path_file and -s $path_file ) {
+            $exist = 1;
+        }
+    }
+    return $exist;
+}
+
+#-----------------------------------------------------------
+
 sub _make_store {
     my ( $self, $class ) = @_;
     my $list = $self->{commandline}->{file};
@@ -237,7 +276,7 @@ sub _make_store {
 
 sub WARN {
     my ( $self, $message ) = @_;
-    open(my $WARN, '>>', 'WARN.log');
+    open( my $WARN, '>>', 'WARN.log' );
 
     print $WARN "[WARN] $message\n";
     return;
@@ -268,7 +307,7 @@ sub LOG {
 
     my $log_file = $self->main->{log} || $default_log;
     $self->{log_file} = $log_file;
-    open(my $LOG, '>>', $log_file);
+    open( my $LOG, '>>', $log_file );
 
     if ( $type eq 'config' ) {
         print $LOG "-" x 55;
@@ -276,7 +315,7 @@ sub LOG {
         print $LOG "-" x 55;
         print $LOG "\nRan on ", $self->timestamp;
         print $LOG "\nUsing the following programs:\n";
-        print $LOG "\nUGP Pipeline Version: ", $self->VERSION, "\n";
+        print $LOG "\nFQF Pipeline Version: ", $self->VERSION, "\n";
         print $LOG "BWA: " . $self->main->{bwa_version},               "\n";
         print $LOG "GATK: " . $self->main->{gatk_version},             "\n";
         print $LOG "SamTools: " . $self->main->{samtools_version},     "\n";
@@ -291,10 +330,7 @@ sub LOG {
         print $LOG "Started process $message at ", $self->timestamp, "\n";
     }
     elsif ( $type eq 'cmd' ) {
-        print $LOG "command started at ", $self->timestamp, " ==> $message\n"
-          if $self->engine eq 'cluster';
-        print $LOG "command started at ", $self->timestamp, " ==> $message\n"
-          if $self->engine eq 'server';
+        print $LOG "command started at ", $self->timestamp, " ==> $message\n";
     }
     elsif ( $type eq 'finish' ) {
         print $LOG "Process finished $message at ", $self->timestamp, "\n";

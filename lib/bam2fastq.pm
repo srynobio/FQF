@@ -66,6 +66,8 @@ sub nantomics_bam2fastq {
         my $pair1 = $file->{path} . $id . '_1.fastq';
         my $pair2 = $file->{path} . $id . '_2.fastq';
 
+        next if ( $self->file_exist($pair1) );
+        next if ( $self->file_exist($pair2) );
         my $cmd = sprintf(
             "%s/bam2fastq.pl %s %s -fq %s -fq2 %s",
             $config->{bam2fastq}, $bam, $opts->{command_string},
@@ -105,6 +107,7 @@ sub uncompress {
             ( my $output = $file ) =~ s/gz/fastq/;
             $self->file_store($output);
 
+            next if ( $self->file_exist($output) );
             my $cmd = sprintf( "gzip -d -c %s > %s", $file, $output );
             push @cmds, $cmd;
         }

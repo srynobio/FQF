@@ -29,8 +29,11 @@ sub _build_intervals {
     my %regions;
     foreach my $reg (<$REGION>) {
         chomp $reg;
-        my @chrs = split /:/, $reg;
-        push @{ $regions{ $chrs[0] } }, $reg;
+        my @chrs    = split /\t/, $reg;
+        my $start   = $chrs[1] + 1;
+        my $end     = $chrs[2] - 1;
+        my $section = "$chrs[0]:$start-$end";
+        push @{ $regions{ $chrs[0] } }, $section;
     }
 
     my @inv_file;
@@ -42,16 +45,58 @@ sub _build_intervals {
             next;
         }
         else {
-            my $LISTFILE = IO::File->new( $output_reg, 'w' ) if $self->execute;
+            my $LISTFILE = IO::File->new( $output_reg, 'w' );
 
             foreach my $list ( @{ $regions{$chr} } ) {
-                print $LISTFILE "$list\n" if $self->execute;
+                print $LISTFILE "$list\n";
             }
             push @inv_file, $output_reg;
         }
     }
     my @sort_inv = sort @inv_file;
     return \@sort_inv;
+}
+
+##-----------------------------------------------------------
+
+sub SelectVariants {
+    my $self = shift;
+    $self->pull;
+
+    my $config = $self->class_config;
+    my $opts   = $self->tool_options('SelectVariants');
+
+    my $fqf = $self->file_retrieve('bam2gvcf');
+    my @gvcfs = grep { /vcf$/ } @{$fqf};
+
+    my @cmds;
+    foreach my $vcf (@gvcfs) {
+        chomp $vcf;
+        my $f_parts = $self->file_frags($vcf);
+
+        foreach my $region ( @{ $self->intervals } ) {
+            my @parts = split /\//, $region;
+            my ( $chr, undef ) = split /_/, $parts[-1];
+
+            my $filename = "$chr\_" . $f_parts->{name};
+
+            my $chrdir = $self->output . "$chr/";
+
+            mkdir $chrdir if $self->execute and !-d $chrdir;
+            my $output = $chrdir . $filename;
+            $self->file_store($output);
+
+            my $cmd = sprintf(
+                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+                  . " -T SelectVariants -R %s "
+                  . "--disable_auto_index_creation_and_locking_when_reading_rods "
+                  . "--variant %s -L %s -o %s",
+                $opts->{xmx}, $opts->{gc_threads}, $config->{gatk},
+                $config->{fasta}, $vcf, $region, $output );
+            push @cmds, $cmd;
+        }
+    }
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -63,79 +108,38 @@ sub CombineGVCF {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('CombineGVCF');
 
-    my $gvcf = $self->file_retrieve('fastqforward');
-    my @iso = grep { /\.vcf$/ } @{$gvcf};
+    my $gvcf = $self->file_retrieve('SelectVariants');
+    my @iso = grep { /vcf$/ } @{$gvcf};
 
-    # only need to start combining if have a
-    # large collection of gvcfs
-    if ( scalar @iso < 200 ) { return }
+    ## will make chr based groupings.
+    my %chr_groups;
+    foreach my $c_vcf (@iso) {
+        chomp $c_vcf;
+
+        my $f_parts = $self->file_frags($c_vcf);
+        my ( $chr, $indiv ) = split /_/, $f_parts->{name};
+        push @{ $chr_groups{$chr} }, $c_vcf;
+    }
 
     my @cmds;
+    foreach my $select ( keys %chr_groups ) {
+        chomp $select;
 
-    my $variants = join( " --variant ", @iso );
+        my $variant = join( " --variant ", @{ $chr_groups{$select} } );
 
-    foreach my $region ( @{ $self->intervals } ) {
-
-        my @parts = split /\//, $region;
-        my ( $chr, undef ) = split /_/, $parts[-1];
-
-        my $output = $self->output . "$chr\_mergeGvcf.vcf";
+        my $chrdir = $self->output . "$select/";
+        my $output = $chrdir . "$select.combined.g.vcf.gz";
         $self->file_store($output);
 
         my $cmd = sprintf(
             "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
               . " -T CombineGVCFs -R %s "
               . "--disable_auto_index_creation_and_locking_when_reading_rods "
-              . "--variant %s -L %s -o %s",
+              . "--variant %s -o %s",
             $opts->{xmx}, $opts->{gc_threads}, $config->{gatk},
-            $config->{fasta}, $variants, $region, $output );
-
+            $config->{fasta}, $variant, $output );
         push @cmds, $cmd;
     }
-    $self->bundle( \@cmds );
-}
-
-##-----------------------------------------------------------
-
-sub CatVariants_CombineGVCF {
-    my $self = shift;
-    $self->pull;
-
-    my $config = $self->class_config;
-
-    my $vcf = $self->file_retrieve('CombineGVCF');
-    my @iso = grep { /mergeGvcf.vcf/ } @{$vcf};
-
-    my %indiv;
-    my @cmds;
-    foreach my $file (@iso) {
-        chomp $file;
-
-        my $frags = $self->file_frags($file);
-        my $path  = $frags->{path};
-
-        my $key = $frags->{parts}[0];
-        push @{ $indiv{$key} }, $file;
-    }
-
-    # put the file in correct order.
-    my @ordered_list;
-    for ( 1 .. 22, 'X', 'Y', 'MT' ) {
-        my $chr = 'chr' . $_;
-        push @ordered_list, $indiv{$chr}->[0];
-    }
-
-    my $variant = join( " -V ", @ordered_list );
-    $variant =~ s/^/-V /;
-
-    my $output = $self->output . $config->{fqf_id} . '_cat_combineGVCF.vcf';
-    $self->file_store($output);
-
-    my $cmd = sprintf(
-        "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
-          . "--assumeSorted  %s -out %s",
-        $config->{gatk}, $config->{fasta}, $variant, $output );
-    push @cmds, $cmd;
     $self->bundle( \@cmds );
 }
 
@@ -148,9 +152,8 @@ sub GenotypeGVCF {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('GenotypeGVCF');
 
-    my $files =
-      $self->file_retrieve('fastqforward');    ##CatVariants_CombineGVCF');
-    my @gvcfs = grep { $_ =~ /g.vcf/ } @{$files};
+    my $files = $self->file_retrieve('CombineGVCF');
+    my @gvcfs = grep { $_ =~ /g.vcf.gz$/ } @{$files};
 
     # collect the 1k backgrounds.
     my (@backs);
@@ -167,21 +170,23 @@ sub GenotypeGVCF {
         }
         $BK->close;
     }
-
-    # the original backgrounds and the gvcf files
     my $back_variants = join( " --variant ", @backs );
-    my $input         = join( " --variant ", @gvcfs );
+
+    my %grouped;
+    foreach my $gvcf (@gvcfs) {
+        chomp $gvcf;
+        my @path = split /\//, $gvcf;
+        my ( $chr, undef ) = split /\./, $path[-1];
+        push @{ $grouped{$chr} }, $gvcf;
+    }
 
     my $intv = $self->intervals;
     my @cmds;
-    foreach my $region ( @{$intv} ) {
+    foreach my $chrom ( keys %grouped ) {
+        my $input = join( " --variant ", @{ $grouped{$chrom} } );
+        my @region = grep { $_ =~ /$chrom\_/ } @{$intv};
 
-        my @split = split /\//, $region;
-        my ( $chr, undef ) = split /_/, $split[-1];
-
-        my $file_parts = $self->file_frags($region);
-
-        my $output = $file_parts->{path} . $chr . '_genotyped.vcf';
+        my $output = $self->output . $chrom . '_genotyped.vcf';
         $self->file_store($output);
 
         my $cmd;
@@ -193,7 +198,7 @@ sub GenotypeGVCF {
                   . "--variant %s --variant %s -L %s -o %s",
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
                 $config->{gatk}, $config->{fasta},    $opts->{num_threads},
-                $input,          $back_variants,      $region,
+                $input,          $back_variants,      shift @region,
                 $output
             );
         }
@@ -205,7 +210,7 @@ sub GenotypeGVCF {
                   . "--num_threads %s --variant %s -L %s -o %s",
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
                 $config->{gatk}, $config->{fasta},    $opts->{num_threads},
-                $input,          $region,             $output
+                $input,          shift @region,       $output
             );
         }
         push @cmds, $cmd;

@@ -1,6 +1,5 @@
 package FQF;
 use Moo;
-use IPC::System::Simple 'run';
 use Config::Std;
 use File::Basename;
 use Parallel::ForkManager;
@@ -17,6 +16,7 @@ with qw|
   fastqc
   samtools
   gatk
+  igv
   tabix
   wham
   clusterUtils
@@ -43,14 +43,6 @@ has output => (
     },
 );
 
-has engine => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $self->commandline->{engine};
-    },
-);
-
 has 'slurm_template' => (
     is      => 'ro',
     default => sub {
@@ -63,8 +55,15 @@ has qstat_limit => (
     is      => 'ro',
     default => sub {
         my $self = shift;
-        my $limit = $self->commandline->{qstat_limit} || '10';
-        return $limit;
+        return $self->commandline->{qstat_limit} || '10';
+    },
+);
+
+has uid => (
+    is      => 'ro',
+    default => sub {
+        my $self = shift;
+        return $self->commandline->{uid};
     },
 );
 
@@ -101,6 +100,14 @@ sub pipeline {
             $self->ERROR("Error during call to $sub: $@");
         }
 
+        ## check for no commands in bundle
+        ## for step which don't run exterior commands.
+        if ( !$self->{bundle} ) {
+            $self->WARN("No command for step: $sub.");
+            delete $self->{bundle};
+            next;
+        }
+
         ## next if $sub commands already done.
         if ( $progress_list{$sub} and $progress_list{$sub} eq 'complete' ) {
             delete $self->{bundle};
@@ -115,10 +122,11 @@ sub pipeline {
             delete $stack->{$sub};
             next;
         }
-        if ( $self->engine eq 'server' ) {
-            $self->_server;
-        }
-        elsif ( $self->engine eq 'cluster' ) {
+        else {
+            if ( scalar @{ $self->{bundle}->{$sub} } < 1 ) {
+                delete $self->{bundle}->{$sub};
+                next;
+            }
             $self->_cluster;
         }
     }
@@ -204,53 +212,6 @@ sub file_frags {
 
 ##-----------------------------------------------------------
 
-sub _server {
-    my $self = shift;
-    my $pm   = Parallel::ForkManager->new( $self->workers );
-
-    # command information .
-    my @sub      = keys %{ $self->{bundle} };
-    my @stack    = values %{ $self->{bundle} };
-    my @commands = map { @$_ } @stack;
-
-    # first pass check
-    unless (@commands) {
-        $self->WARN("No commands found, review steps");
-        return;
-    }
-
-    # print to log.
-    $self->LOG( 'start', $sub[0] );
-
-    # run the stack.
-    my $status = 'run';
-    while (@commands) {
-        my $cmd = shift(@commands);
-
-        $self->LOG( 'cmd', $cmd->[0] );
-        $pm->start and next;
-        eval { run( $cmd->[0] ); };
-        if ($@) {
-            $self->ERROR("Error occured running command: $@\n");
-            $status = 'die';
-            die;
-        }
-        $pm->finish;
-    }
-    $pm->wait_all_children;
-
-    # die on errors.
-    die if ( $status eq 'die' );
-
-    $self->LOG( 'finish',   $sub[0] );
-    $self->LOG( 'progress', $sub[0] );
-
-    delete $self->{bundle};
-    return;
-}
-
-##-----------------------------------------------------------
-
 sub node_setup {
     my ( $self, $step ) = @_;
 
@@ -259,7 +220,7 @@ sub node_setup {
 
     ## jpn need higher values for default.
     my $jpn;
-    if ( $step eq 'fastqforward' ) {
+    if ( $step =~ /fastq2bam|bam2gvcf/ ) {
         ( $opts->{jpn} )
           ? ( $jpn = $opts->{jpn} )
           : ( $jpn = '4' );
@@ -267,9 +228,50 @@ sub node_setup {
     else {
         $jpn = $opts->{jpn} || '1';
     }
-
     return $jpn, $node;
 }
+
+##-----------------------------------------------------------
+
+#sub _server {
+#    my ( $self, $stack ) = @_;
+#
+#    # command information.
+#    my @sub      = keys %{ $self->{bundle} };
+#    my @stack    = values %{ $self->{bundle} };
+#    my @commands = map { @$_ } @stack;
+#
+#    return if ( !@commands );
+#    $self->LOG( 'start', $sub[0] );
+#
+#    my $id;
+#    my ( @parts, @copies, @slurm_stack );
+#    while (@commands) {
+#
+#        my $slurm_file = $sub[0] . "_" . ++$id . ".sbatch";
+#
+#        my $RUN = IO::File->new( $slurm_file, 'w' )
+#          or $self->ERROR('Can not create needed slurm file [cluster]');
+#
+#        # don't go over total file amount.
+#        if ( $jpn > scalar @commands ) {
+#            $jpn = scalar @commands;
+#        }
+#
+#        # get the right collection of files
+#        @parts = splice( @commands, 0, $jpn );
+#
+#        # write out the commands not copies.
+#        map { $self->LOG( 'cmd', $_ ) } @parts;
+#
+#        # call to create sbatch script.
+#        my $batch = $self->$node( \@parts, $sub[0] );
+#
+#        print $RUN $batch;
+#        push @slurm_stack, $slurm_file;
+#        $RUN->close;
+#    }
+#}
 
 ##-----------------------------------------------------------
 
@@ -281,19 +283,20 @@ sub _cluster {
     my @stack    = values %{ $self->{bundle} };
     my @commands = map { @$_ } @stack;
 
-    return if ( ! @commands );
+    return if ( !@commands );
 
-    # jobs per node per step
+    # jobs per node per step and options
     my $jpn = $self->config->{ $sub[0] }->{jpn} || '1';
-
-    # get nodes selection from config file
     my $opts = $self->tool_options( $sub[0] );
+
+    if ( !$opts->{node} ) {
+        $self->WARN("Node not selected for $sub[0] task defaulting to ucgd");
+    }
     my $node = $opts->{node} || 'ucgd';
 
-    $self->LOG( 'start', $sub[0] );
-
     my $id;
-    my ( @parts, @copies, @slurm_stack );
+    my @slurm_stack;
+    $self->LOG( 'start', $sub[0] );
     while (@commands) {
         my $slurm_file = $sub[0] . "_" . ++$id . ".sbatch";
 
@@ -306,13 +309,13 @@ sub _cluster {
         }
 
         # get the right collection of files
-        @parts = splice( @commands, 0, $jpn );
+        my @cmd_chunk = splice( @commands, 0, $jpn );
 
         # write out the commands not copies.
-        map { $self->LOG( 'cmd', $_ ) } @parts;
+        map { $self->LOG( 'cmd', $_ ) } @cmd_chunk;
 
         # call to create sbatch script.
-        my $batch = $self->$node( \@parts, $sub[0] );
+        my $batch = $self->$node( \@cmd_chunk, $sub[0] );
 
         print $RUN $batch;
         push @slurm_stack, $slurm_file;
@@ -342,11 +345,11 @@ sub _cluster {
     }
 
     ## give smaller stacks time to start.
-    sleep(60);
+    sleep(30);
 
     # check the status of current sbatch jobs
     # before moving on.
-    $self->_wait_all_jobs($node, $sub[0]);
+    $self->_wait_all_jobs( $node, $sub[0] );
     $self->_error_check;
     unlink('launch.index');
 
@@ -362,7 +365,8 @@ sub _jobs_status {
     my ( $self, $node ) = @_;
 
     my $partition = $self->_which_node($node);
-    my $state = `squeue -A $partition -u u0413537 -h | wc -l`;
+    my $id        = $self->uid;
+    my $state     = `squeue -A $partition -u $id -h | wc -l`;
 
     if ( $state >= $self->qstat_limit ) {
         return 'wait';
@@ -379,7 +383,7 @@ sub _jobs_status {
 sub _relaunch {
     my $self = shift;
 
-    my @error = `grep error *.out`;
+    my @error = `grep -i error *.out`;
     chomp @error;
     if ( !@error ) { return }
 
@@ -387,6 +391,12 @@ sub _relaunch {
     my @error_files;
     foreach my $cxl (@error) {
         chomp $cxl;
+
+        if ( $cxl =~ /TIME LIMIT/ ) {
+            say "[WARN] a job was canceled due to time limit";
+            next;
+        }
+
         next unless ( $cxl =~ /PREEMPTION/ );
 
         my @ids = split /\s/, $cxl;
@@ -421,7 +431,7 @@ sub _relaunch {
 ##-----------------------------------------------------------
 
 sub _wait_all_jobs {
-    my ( $self, $node, $sub) = @_;
+    my ( $self, $node, $sub ) = @_;
 
     my $process;
     do {
@@ -435,38 +445,38 @@ sub _wait_all_jobs {
 ##-----------------------------------------------------------
 
 sub _process_check {
-    my ( $self, $node, $sub) = @_;
-    my $partition = $self->_which_node($node);
+    my ( $self, $node, $sub ) = @_;
 
-    my @processing = `squeue -A $partition -u u0413537 -h --format=%A`;
-    #my @processing = `squeue -A $partition -u u0413537 -h --format=%30j |grep $sub`;
+    my $partition = $self->_which_node($node);
+    my $id        = $self->uid;
+
+    my @processing = `squeue -A $partition -u $id -h --format=%A`;
     chomp @processing;
     if ( !@processing ) { return 0 }
 
     ## check run specific processing.
     ## make lookup of what is running.
     my %running;
-    foreach my $active ( @processing ) {
+    foreach my $active (@processing) {
         chomp $active;
         $active =~ s/\s+//g;
         $running{$active}++;
     }
 
     ## check what was launched.
-    open(my $LAUNCH, '<', 'launch.index') 
-        or $self->ERROR("Can't find needed launch.index file.");
+    open( my $LAUNCH, '<', 'launch.index' )
+      or $self->ERROR("Can't find needed launch.index file.");
 
     my $current = 0;
-    foreach my $launched ( <$LAUNCH> ) {
+    foreach my $launched (<$LAUNCH>) {
         chomp $launched;
         my @result = split /\s+/, $launched;
 
-        if ( $running{$result[-1]} ) {
-            #if ( $running{$result[0]} ) {
+        if ( $running{ $result[-1] } ) {
             $current++;
         }
     }
-    ($current) ? (return 1) : (return 0);
+    ($current) ? ( return 1 ) : ( return 0 );
 }
 
 ##-----------------------------------------------------------
@@ -477,10 +487,15 @@ sub _which_node {
     if ( $node =~ /\bucgd\b/ ) {
         return 'ucgd-kp';
     }
-    elsif ( $node =~ /b\fqf\b/ ) {
+    elsif ( $node =~ /\bfqf\b/ ) {
         return 'ucgd-kp';
     }
-    elsif ( $node =~ /(guest|fqf_guest|fqf_ember|ember_guest)/ ) {
+    elsif ( $node =~ /(fqf_ember|ember)/ ) {
+        return 'yandell-em';
+    }
+    elsif ( $node =~
+        /(kingspeak_guest|fqf_kingspeak_guest|ember_guest|fqf_ember_guest)/ )
+    {
         return 'owner-guest';
     }
 }
@@ -490,10 +505,13 @@ sub _which_node {
 sub _error_check {
     my $self = shift;
 
-    my @error = `grep error *.out`;
-    if ( !@error ) { return }
+    my @error = `grep -i error *.out`;
+    chomp @error;
 
-    $self->ERROR("Jobs could not be launch or completed");
+    if ( !@error ) { return }
+    else {
+        $self->WARN("Some errors found (possibly non-fatal) plese review.");
+    }
 }
 
 ##-----------------------------------------------------------

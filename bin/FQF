@@ -6,7 +6,6 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 use FQF;
 use Getopt::Long;
-use Carp;
 
 my $usage = << "EOU";
 
@@ -33,8 +32,9 @@ Required options:
 
     --interval_list, -il    Region list file for GATK genotyping. [Example: 1:10929-11532]
 
+    --uid                   Your University of Utah or Slurm id.
+
 Additional options:
-    --engine, -e            Which engine to use: server or cluster. [DEFAULT server].
 
     --file, -f              List of files (including path) from which to start FQF.
                             File must match previous step FQF would have ran.
@@ -48,6 +48,9 @@ Additional options:
 
     --qstat_limit, -ql      Limit to the number of qstat jobs to launch at one time. [DEFAULT 10]
 
+    --sbatch_time, -st      Option to override sbatch run time from defaults, example: 4:00:00
+                            Value will be set for all sbatch scripts.
+
     --help, -h              Print this usage statement.
 
 EOU
@@ -56,17 +59,18 @@ my %c_opts = ();
 GetOptions(
     \%c_opts,              "config|cfg=s",
     "run|r",               "interval_list|il=s",
-    "engine|e=s",          "clean|c",
+    "clean|c",              
     "error_check|ec",      "file|f=s",
     "jobs_per_node|jpn=i", "slurm_template|slurm=s",
     "help|h",              "qstat_limit|ql=i",
-    "individuals|i",
+    "sbatch_time|st=s",
+    "individuals|i",       "uid=s",
 );
-croak $usage if $c_opts{help};
+die $usage if $c_opts{help};
 
 # set up commandline defaults.
 if ( $c_opts{clean} ) {
-    `rm -rf *.log* CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp`;
+    `rm -rf core.* *.log* CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp`;
     exit(0);
 }
 
@@ -76,12 +80,6 @@ if ( $c_opts{error_check} ) {
     system("grep -i 'failed' *.log-*");
     exit(0);
 }
-croak "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} );
-
-# Clean up and default setting.
-$c_opts{engine} //= 'server';
-if ( $c_opts{file} and -e 'CMD_stack.store' ) { `rm CMD_stack.store` }
-
+die "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} and $c_opts{uid});
 my $fqf = FQF->new( commandline => \%c_opts, );
-
 $fqf->pipeline;
