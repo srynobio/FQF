@@ -78,35 +78,8 @@ has execute => (
     },
 );
 
-has individuals => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $self->commandline->{individuals} || 0;
-    },
-);
-
 #-----------------------------------------------------------
 #---------------------- METHODS ----------------------------
-#-----------------------------------------------------------
-
-sub BUILD {
-    my $self = shift;
-
-    ## environmental variables to launch to
-    $ENV{LSBATCH} = '/uufs/lonepeak.peaks/sys/pkg/slurm/std/bin/sbatch';
-    $ENV{ASBATCH} = '/uufs/ash.peaks/sys/pkg/slurm/std/bin/sbatch';
-    $ENV{KSBATCH} = '/uufs/kingspeak.peaks/sys/pkg/slurm/std/bin/sbatch';
-    $ENV{SSBATCH} = '/uufs/scrubpeak.peaks/sys/pkg/slurm/std/bin/sbatch';
-    $ENV{TSBATCH} = '/uufs/tangent.peaks/sys/pkg/slurm/std/bin/sbatch';
-
-    $ENV{ASINFO} = '/uufs/ash.peaks/sys/pkg/slurm/std/bin/sinfo';
-    $ENV{LSINFO} = '/uufs/lonepeak.peaks/sys/pkg/slurm/std/bin/sinfo';
-    $ENV{TSINFO} = '/uufs/tangent.peaks/sys/pkg/slurm/std/bin/sinfo';
-    $ENV{KSINFO} = '/uufs/kingspeak.peaks/sys/pkg/slurm/std/bin/sinfo';
-    $ENV{SSINFO} = '/uufs/scrubpeak.peaks/sys/pkg/slurm/std/bin/sinfo';
-}
-
 #-----------------------------------------------------------
 
 sub _build_data_files {

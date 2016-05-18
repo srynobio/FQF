@@ -43,14 +43,6 @@ has output => (
     },
 );
 
-has 'slurm_template' => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $self->commandline->{slurm_template};
-    },
-);
-
 has qstat_limit => (
     is      => 'ro',
     default => sub {
@@ -117,9 +109,14 @@ sub pipeline {
         ## print stack for review
         if ( !$self->execute ) {
             my $stack = $self->{bundle};
-            map { print "Review of command[s] from: $sub => $_\n" }
-              @{ $stack->{$sub} };
+
+            open(my $OUT, '>', "$sub.cmd.txt");
+
+            map { say $OUT $_ } @{ $stack->{$sub} };
+            map { say "Review $_" } @{ $stack->{$sub} };
+
             delete $stack->{$sub};
+            close $OUT;
             next;
         }
         else {

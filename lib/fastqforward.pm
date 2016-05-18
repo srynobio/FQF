@@ -54,7 +54,7 @@ sub fastq2bam {
     my @seq_files;
     foreach my $file ( @{$files} ) {
         chomp $file;
-        next unless ( $file =~ /(fastq$|fq$)/ );
+        next unless ( $file =~ /(fastq$|fq$|txt)/ );
         push @seq_files, $file;
     }
 

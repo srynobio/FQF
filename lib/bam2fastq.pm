@@ -48,11 +48,6 @@ sub nantomics_bam2fastq {
     my $opts   = $self->tool_options('nantomics_bam2fastq');
     my $bams   = $self->file_retrieve;
 
-    if ( !$self->execute ) {
-        $self->WARN("bam2fastq will does not generate review commands.");
-        return;
-    }
-
     my @cmds;
     foreach my $bam ( @{$bams} ) {
         chomp $bam;
@@ -63,8 +58,10 @@ sub nantomics_bam2fastq {
         my $filename = $file->{name};
         ( my $id, undef ) = split /--/, $filename;
 
-        my $pair1 = $file->{path} . $id . '_1.fastq';
-        my $pair2 = $file->{path} . $id . '_2.fastq';
+        my $pair1 = $file->{path} . $id . '_1.fastq.gz';
+        my $pair2 = $file->{path} . $id . '_2.fastq.gz';
+        $self->file_store($pair1);
+        $self->file_store($pair2);
 
         next if ( $self->file_exist($pair1) );
         next if ( $self->file_exist($pair2) );
@@ -90,6 +87,9 @@ sub uncompress {
     my $fastqs = $self->file_retrieve('fastqc_run');
 
     my $source = $opts->{source};
+    unless ( $source ) {
+        $self->ERROR("uncompress requires source option of bam2fastq or other");
+    }
 
     my @cmds;
     if ( $source eq 'bam2fastq' ) {
