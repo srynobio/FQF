@@ -110,7 +110,7 @@ sub pipeline {
         if ( !$self->execute ) {
             my $stack = $self->{bundle};
 
-            open(my $OUT, '>', "$sub.cmd.txt");
+            open( my $OUT, '>', "$sub.cmd.txt" );
 
             map { say $OUT $_ } @{ $stack->{$sub} };
             map { say "Review $_" } @{ $stack->{$sub} };
@@ -227,48 +227,6 @@ sub node_setup {
     }
     return $jpn, $node;
 }
-
-##-----------------------------------------------------------
-
-#sub _server {
-#    my ( $self, $stack ) = @_;
-#
-#    # command information.
-#    my @sub      = keys %{ $self->{bundle} };
-#    my @stack    = values %{ $self->{bundle} };
-#    my @commands = map { @$_ } @stack;
-#
-#    return if ( !@commands );
-#    $self->LOG( 'start', $sub[0] );
-#
-#    my $id;
-#    my ( @parts, @copies, @slurm_stack );
-#    while (@commands) {
-#
-#        my $slurm_file = $sub[0] . "_" . ++$id . ".sbatch";
-#
-#        my $RUN = IO::File->new( $slurm_file, 'w' )
-#          or $self->ERROR('Can not create needed slurm file [cluster]');
-#
-#        # don't go over total file amount.
-#        if ( $jpn > scalar @commands ) {
-#            $jpn = scalar @commands;
-#        }
-#
-#        # get the right collection of files
-#        @parts = splice( @commands, 0, $jpn );
-#
-#        # write out the commands not copies.
-#        map { $self->LOG( 'cmd', $_ ) } @parts;
-#
-#        # call to create sbatch script.
-#        my $batch = $self->$node( \@parts, $sub[0] );
-#
-#        print $RUN $batch;
-#        push @slurm_stack, $slurm_file;
-#        $RUN->close;
-#    }
-#}
 
 ##-----------------------------------------------------------
 

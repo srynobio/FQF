@@ -67,7 +67,7 @@ sub SelectVariants {
     my $opts   = $self->tool_options('SelectVariants');
 
     my $fqf = $self->file_retrieve('bam2gvcf');
-    my @gvcfs = grep { /vcf$/ } @{$fqf};
+    my @gvcfs = grep { /g.vcf$/ } @{$fqf};
 
     my @cmds;
     foreach my $vcf (@gvcfs) {
@@ -79,15 +79,13 @@ sub SelectVariants {
             my ( $chr, undef ) = split /_/, $parts[-1];
 
             my $filename = "$chr\_" . $f_parts->{name};
-
-            my $chrdir = $self->output . "$chr/";
-
+            my $chrdir   = $self->output . "$chr/";
             mkdir $chrdir if $self->execute and !-d $chrdir;
             my $output = $chrdir . $filename;
             $self->file_store($output);
 
             my $cmd = sprintf(
-                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+"java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
                   . " -T SelectVariants -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--variant %s -L %s -o %s",
@@ -132,7 +130,7 @@ sub CombineGVCF {
         $self->file_store($output);
 
         my $cmd = sprintf(
-            "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
+"java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
               . " -T CombineGVCFs -R %s "
               . "--disable_auto_index_creation_and_locking_when_reading_rods "
               . "--variant %s -o %s",
@@ -158,7 +156,6 @@ sub GenotypeGVCF {
     # collect the 1k backgrounds.
     my (@backs);
     if ( $config->{backgrounds} ) {
-
         my $BK = IO::Dir->new( $config->{backgrounds} )
           or $self->ERROR('Could not find/open background directory');
 
@@ -192,7 +189,7 @@ sub GenotypeGVCF {
         my $cmd;
         if ($back_variants) {
             $cmd = sprintf(
-                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods --num_threads %s "
                   . "--variant %s --variant %s -L %s -o %s",
@@ -204,7 +201,7 @@ sub GenotypeGVCF {
         }
         else {
             $cmd = sprintf(
-                "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
+"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--num_threads %s --variant %s -L %s -o %s",
@@ -255,7 +252,7 @@ sub CatVariants_Genotype {
     $self->file_store($output);
 
     my $cmd = sprintf(
-        "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
+"java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
           . "--assumeSorted  %s -out %s",
         $config->{gatk}, $config->{fasta}, $variant, $output );
     push @cmds, $cmd;
@@ -288,7 +285,7 @@ sub VariantRecalibrator_SNP {
 
     my @cmds;
     my $cmd = sprintf(
-        "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
+"java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s %s/GenomeAnalysisTK.jar "
           . " -T VariantRecalibrator -R %s --minNumBadVariants %s --num_threads %s "
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-resource:%s -an %s -input %s %s %s %s -mode SNP",

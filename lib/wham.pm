@@ -102,7 +102,7 @@ sub wham_sort {
     my $joined = join( " ", @{$files} );
 
     my $cmd = sprintf(
-        "cat %s >> %swham.tmp && sort -T %s -k1,1 -k2,2n %swham.tmp -o %s && rm %swham.tmp",
+"cat %s >> %swham.tmp && sort -T %s -k1,1 -k2,2n %swham.tmp -o %s && rm %swham.tmp",
         $joined,           $config->{output}, '/tmp',
         $config->{output}, $output,           $config->{output}
     );
@@ -156,10 +156,12 @@ sub wham_splitter {
     ## get file parts
     my $frags = $self->file_frags( $files->[0] );
 
-    ## test if temp file already exist.
-    my $tmp_test = $frags->{path} . 'UGP_split_temp_*_WHAM.vcf';
-    if ( glob $tmp_test ) {
-        unlink glob "$tmp_test";
+    ## test if tmps file already exist.
+    my $tmp_files = $frags->{path} . 'UGP_split_temp_*';
+    my @tmp_trash = glob <"$tmp_files">;
+    if (@tmp_trash) {
+        $self->WARN("Removing old UGP_split_temp_* files.");
+        unlink @tmp_trash;
     }
     $self->WARN("wham_splitter creating files of 200 per-file.");
 
@@ -189,9 +191,11 @@ sub wham_genotype {
     my $config    = $self->class_config;
     my $opts      = $self->tool_options('wham_genotype');
     my $files     = $self->file_retrieve('wham_splitter');
-    my $bam_files = $self->file_retrieve('fastq2bam');
+    my $fqf_files = $self->file_retrieve('fastq2bam');
 
-    my $join_bams = join( ",", @{$bam_files} );
+    my @bam_files = grep { $_ =~ /bam$/ } @{$fqf_files};
+
+    my $join_bams = join( ",", @bam_files );
     my $skip_ids = $self->seqid_skip;
 
     my @cmds;
@@ -284,8 +288,12 @@ sub wham_bgzip {
 
     $self->file_store($output_file);
 
-    my $cmd = sprintf( "%s/bgzip -c %s > %s",
-        $config->{tabix}, $combine_file->[0], $output_file );
+    ## dup step need different path to software.
+    my $cmd = sprintf(
+        "%s/bgzip -c %s > %s",
+        $self->{software}->{tabix},
+        $combine_file->[0], $output_file
+    );
     $self->bundle( \$cmd );
 }
 
@@ -300,8 +308,12 @@ sub wham_tabix {
 
     my $combine_file = $self->file_retrieve('wham_bgzip');
 
-    my $cmd =
-      sprintf( "%s/tabix -p vcf %s", $config->{tabix}, $combine_file->[0] );
+    ## dup step need different path to software.
+    my $cmd = sprintf(
+        "%s/tabix -p vcf %s",
+        $self->{software}->{tabix},
+        $combine_file->[0]
+    );
     $self->bundle( \$cmd );
 }
 
