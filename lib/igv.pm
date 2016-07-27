@@ -23,7 +23,7 @@ sub igv_index {
 
     my @cmds;
     foreach my $vcf ( @{$gvcf} ) {
-        next if ( $vcf =~ /g.vcf$/ );
+        next if ( !$vcf =~ /g.vcf$/ );
 
         my $outfile = $vcf . '.idx';
         next if ( $self->file_exist($outfile) );
