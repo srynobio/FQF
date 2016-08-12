@@ -18,8 +18,6 @@ Synopsis:
 
 Description:
 
-    FQF: FastQforward implementation of UGP pipeline version: 0.0.1
-
     FQF is a NGS pipeline created for the 
     Utah Genome Project (UGP) and The Utah Center for Genetic Discovery (UCGD)
 
@@ -32,7 +30,9 @@ Required options:
 
     --interval_list, -il    Region list file for GATK genotyping. [Example: 1:10929-11532]
 
-    --uid                   Your University of Utah or Slurm id.
+    --step, -s              Which step of the pipeline you want to run.  
+                            Current steps implemented: toGVCF, QC, Genotype, WHAM
+                            Each step has a corresponding config file located in /data/Config_files
 
 Additional options:
 
@@ -44,7 +44,7 @@ Additional options:
 
     --error_check, -ec      Run quick check of log files for run errors.
 
-    --clean, -c             Will clean up all log, data, slurm, index and report files.
+    --fqf_check, -fc        Check fqf2bam and bam2gvcf for completed files.
 
     --qstat_limit, -ql      Limit to the number of qstat jobs to launch at one time. [DEFAULT 10]
 
@@ -53,7 +53,11 @@ Additional options:
 
     --command_dump, -cd     Will print to STDOUT full stack of commands.
 
-    --fqf_check, -fc        Check fqf2bam and bam2gvcf for completed files.
+    --uid                   University of Utah id to run as. [Default \$ENV{USER}]
+
+    --clean, -c             Will clean up all log, data, slurm, index and report files.
+
+    --version, -v           Print FQF version.
 
     --help, -h              Print this usage statement.
 
@@ -64,9 +68,9 @@ GetOptions(
     \%c_opts,              
     "config|cfg=s",
     "interval_list|il=s",
+    "step|s=s",
     "file|f=s",
     "jobs_per_node|jpn=i", 
-    "slurm_template|slurm=s",
     "qstat_limit|ql=i",
     "sbatch_time|st=s", 
     "uid=s",
@@ -74,10 +78,20 @@ GetOptions(
     "fqf_check|fc",
     "error_check|ec",      
     "run|r",               
+    "version|v",
     "clean|c",             
     "help|h",              
 );
 die $usage if $c_opts{help};
+
+## add version
+$c_opts{pipeline_version} = '1.2.1';
+
+## version check
+if ( $c_opts{version} ) {
+    say "FQF version: ", $c_opts{pipeline_version};
+    exit(0);
+}
 
 # set up commandline defaults.
 if ( $c_opts{clean} ) {
@@ -97,7 +111,22 @@ if ( $c_opts{error_check} ) {
     system("grep -i 'failed' *.log-*");
     exit(0);
 }
-die "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} and $c_opts{uid});
+die "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} and $c_opts{step});
 my $fqf = FQF->new( commandline => \%c_opts, );
 
+REPROCESS:
 $fqf->pipeline;
+
+if ($c_opts{step} eq 'toGVCF') {
+    my @bams  = `grep 'BAM  -->' fastq2bam.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
+    my @gvcfs = `grep 'gVCF  -->' bam2gvcf.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
+
+    my @bam_founds  = grep { $_ =~ /not found/ } @bams;
+    my @gvcf_founds = grep { $_ =~ /not found/ } @gvcfs;
+
+    if ( @bam_founds or @gvcf_founds) {
+        system "rm PROGRESS";
+        goto REPROCESS;
+    }
+}
+

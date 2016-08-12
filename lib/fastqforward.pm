@@ -76,6 +76,10 @@ sub fastq2bam {
         my $fileref = $id_list{$people};
         my @s_files = sort @$fileref;
 
+        if ( ! $opts->{type} ) {
+            $self->ERROR("config fastqforward option for type not given");
+        }
+
         ## unpaired files
         if ( $opts->{type} eq 'unpaired' ) {
 

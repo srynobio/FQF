@@ -55,7 +55,7 @@ has uid => (
     is      => 'ro',
     default => sub {
         my $self = shift;
-        return $self->commandline->{uid};
+        return $self->commandline->{uid} || $ENV{USER};
     },
 );
 

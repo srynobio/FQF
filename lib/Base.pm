@@ -11,11 +11,6 @@ use feature 'say';
 #---------------------- ATTRIBUTES -------------------------
 #-----------------------------------------------------------
 
-has VERSION => (
-    is      => 'ro',
-    default => sub { '1.0.0' },
-);
-
 has commandline => (
     is       => 'rw',
     required => 1,
@@ -75,6 +70,22 @@ has execute => (
     default => sub {
         my $self = shift;
         return $self->commandline->{run} || 0;
+    },
+);
+
+has step => (
+    is => 'ro',
+    default => sub {
+        my $self = shift;
+        return $self->commandline->{step};
+    },
+);
+
+has pipeline_version => (
+    is      => 'ro',
+    default => sub {
+        my $self = shift;
+        return $self->commandline->{pipeline_version};
     },
 );
 
@@ -276,7 +287,7 @@ sub LOG {
     my @time = split /\s+/, $self->timestamp;
     my $log_time = "$time[1]_$time[2]_$time[4]";
     my $default_log =
-      'FQF_Pipeline.GVCF.' . $self->VERSION . "_$log_time-log.txt";
+      'FQF_Pipeline.GVCF.' . $self->pipeline_version . "_$log_time-log.txt";
 
     my $log_file = $self->main->{log} || $default_log;
     $self->{log_file} = $log_file;
@@ -288,7 +299,7 @@ sub LOG {
         print $LOG "-" x 55;
         print $LOG "\nRan on ", $self->timestamp;
         print $LOG "\nUsing the following programs:\n";
-        print $LOG "\nFQF Pipeline Version: ", $self->VERSION, "\n";
+        print $LOG "\nFQF Pipeline Version: ", $self->pipeline_version, "\n";
         print $LOG "BWA: " . $self->main->{bwa_version},               "\n";
         print $LOG "GATK: " . $self->main->{gatk_version},             "\n";
         print $LOG "SamTools: " . $self->main->{samtools_version},     "\n";
