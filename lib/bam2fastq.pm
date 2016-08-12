@@ -104,7 +104,10 @@ sub uncompress {
         foreach my $file ( @{$fastqs} ) {
             chomp $file;
             next unless ( $file =~ /gz$/ );
-            ( my $output = $file ) =~ s/gz/fastq/;
+            ( my $output = $file ) =~ s/\.gz//;
+            if ( $output !~ /fastq/ ) {
+                $output =~ s/$/.fastq/;
+            }
             $self->file_store($output);
 
             next if ( $self->file_exist($output) );

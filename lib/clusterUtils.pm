@@ -134,7 +134,7 @@ sub fqf {
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
 source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
-module load fastqforward
+module load ucgd_modules
 
 # clean all shared memory.
 /uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
@@ -187,7 +187,7 @@ sub fqf_kingspeak_guest {
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
 source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
-module load fastqforward
+module load ucgd_modules
 
 # clean all shared memory.
 /uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
@@ -283,7 +283,7 @@ sub fqf_ember {
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
 source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
-module load fastqforward
+module load ucgd_modules
 
 # clean all shared memory.
 /uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
@@ -381,7 +381,7 @@ sub fqf_ember_guest {
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
 source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
-module load fastqforward
+module load ucgd_modules
 
 # clean all shared memory.
 /uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
