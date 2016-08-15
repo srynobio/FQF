@@ -20,7 +20,7 @@ sub snpeff_run {
     my @cmds;
     foreach my $file ( @{$vcf} ) {
         chomp $file;
-        next unless ( $file =~ /\.vcf$/ );
+        next unless ( $file =~ /Final\+Backgrounds\+.*.vcf$/ );
         $self->file_store($file);
 
         ( my $indiv = $file ) =~ s/\.vcf//;

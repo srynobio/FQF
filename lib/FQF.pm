@@ -20,6 +20,8 @@ with qw|
   tabix
   wham
   clusterUtils
+  featureCounts
+  snpeff
   |;
 
 ##-----------------------------------------------------------

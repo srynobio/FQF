@@ -272,7 +272,7 @@ sub ERROR {
     my ( $self, $message ) = @_;
     open( my $ERROR, '>>', 'FATAL.log' );
 
-    say $ERROR $self->timestamp, "[ERROR] $message";
+    say $ERROR $self->timestamp, " [ERROR] $message";
     say "Fatal error occured please check FATAL.log file";
     $ERROR->close;
     exit(0);

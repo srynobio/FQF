@@ -391,7 +391,7 @@ sub lossless_valadate {
 
         my $cmd = sprintf( "lossless_validator.pl -c %s %s %s %s > %s",
             $opts->{cpu}, "$bam.bam", 
-            "$bam\_1.fastq", "$bam\_2.fastq",
+            "$bam\_*1*.fastq", "$bam\_*2*.fastq",
             "$bam.lossless.result" 
         );
         push @cmds, $cmd;
