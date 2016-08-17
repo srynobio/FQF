@@ -22,4 +22,3 @@ foreach my $path (@result) {
     my $gvcf_cmd = "ln -s $path/*$GVCF_PATH/* .";
     `$gvcf_cmd`;
 }
-
