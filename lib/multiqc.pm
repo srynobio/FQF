@@ -1,4 +1,4 @@
-package fastqc;
+package multiqc;
 use Moo::Role;
 
 ##-----------------------------------------------------------
@@ -9,28 +9,24 @@ use Moo::Role;
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-sub fastqc_run {
+sub multiqc_run {
     my $self = shift;
     $self->pull;
 
     my $config = $self->class_config;
-    my $opts   = $self->tool_options('fastqc_run');
-    my $gz     = $self->file_retrieve;
+    my $opts   = $self->tool_options('multiqc_run');
 
-    my @cmds;
-    foreach my $file ( @{$gz} ) {
-        chomp $file;
-        next unless ( $file =~ /(fastq$|fastq.gz$|fq.gz$|fq$)/ );
-        $self->file_store($file);
+    my $work_dir    = $self->output;
+    my $output_file = $config->{fqf_id} . ".multiqc.report";
 
-        my $cmd = sprintf( "%s/fastqc --threads %s -o %s -f fastq %s",
-            $config->{fastqc}, $opts->{threads}, $config->{output}, $file );
-        push @cmds, $cmd;
-    }
-    $self->bundle( \@cmds );
+    my $cmd = sprintf( "multiqc %s --force --no-data-dir --filename %s",
+        $work_dir, $output_file );
+
+    $self->bundle( \$cmd );
     return;
 }
 
 ##-----------------------------------------------------------
 
 1;
+

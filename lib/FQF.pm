@@ -22,6 +22,7 @@ with qw|
   clusterUtils
   featureCounts
   snpeff
+  multiqc
   |;
 
 ##-----------------------------------------------------------

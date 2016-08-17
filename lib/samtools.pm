@@ -64,7 +64,7 @@ sub flagstat {
 
     my @cmds;
     foreach my $sort ( @{$files} ) {
-        next unless ( $sort =~ /\.bam/ );
+        next unless ( $sort =~ /\.bam$/ );
         ( my $flag_file = $sort ) =~ s/\.bam/.flagstat/;
 
         next if ( $self->file_exist($flag_file) );

@@ -44,6 +44,7 @@ sub ucgd {
 #SBATCH -o $step\_%A.out 
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
+module load ucgd_modules
 
 # clean up before start
 find /scratch/local/ -user $user -exec rm -rf {} \\; 
@@ -89,6 +90,7 @@ sub kingspeak_guest {
 #SBATCH -o $step\_%A.out 
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
+module load ucgd_modules
 
 # clean up before start
 find /scratch/local/ -user $user -exec rm -rf {} \\; 
@@ -134,6 +136,7 @@ sub fqf {
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
 source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
+
 module load ucgd_modules
 
 # clean all shared memory.
@@ -187,6 +190,7 @@ sub fqf_kingspeak_guest {
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
 source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
+
 module load ucgd_modules
 
 # clean all shared memory.
@@ -239,6 +243,8 @@ sub ember {
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
 
+module load ucgd_modules
+
 # clean up before start
 find /scratch/local/ -user $user -exec rm -rf {} \\; 
 
@@ -283,6 +289,7 @@ sub fqf_ember {
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
 source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
+
 module load ucgd_modules
 
 # clean all shared memory.
@@ -336,6 +343,8 @@ sub ember_guest {
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
 
+module load ucgd_modules
+
 # clean up before start
 find /scratch/local/ -user $user -exec rm -rf {} \\; 
 
@@ -381,6 +390,7 @@ sub fqf_ember_guest {
 
 source /uufs/chpc.utah.edu/common/home/$user/.bashrc
 source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
+
 module load ucgd_modules
 
 # clean all shared memory.

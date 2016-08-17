@@ -282,8 +282,8 @@ sub wham_bgzip {
 
     my $config = $self->class_config;
     my $opts   = $self->tool_options('bgzip');
-
     my $combine_file = $self->file_retrieve('wham_genotype_cat');
+
     my $output_file  = "$combine_file->[0]" . '.gz';
 
     $self->file_store($output_file);
