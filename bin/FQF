@@ -28,11 +28,12 @@ Required options:
 
     --config, -cfg          FQF configuration file.
 
-    --interval_list, -il    Region list file for GATK genotyping. [Example: 1:10929-11532]
-
     --step, -s              Which step of the pipeline you want to run.  
                             Current steps implemented: toGVCF, QC, Genotype, WHAM
                             Each step has a corresponding config file located in /data/Config_files
+
+    --interval_list, -il    Region list file for GATK genotyping. [Example: 1:10929-11532]
+                            Required if running toGVCF step.
 
 Additional options:
 
@@ -111,7 +112,13 @@ if ( $c_opts{error_check} ) {
     system("grep -i 'failed' *.log-*");
     exit(0);
 }
-die "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} and $c_opts{step});
+die "Required options not met\n$usage" unless ( $c_opts{config} and $c_opts{step});
+
+## check if running toGVCF
+if ( $c_opts{step} eq 'toGVCF' ) {
+    die "interval list file needed\n" unless ($c_opts{interval_list});
+}
+#die "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} and $c_opts{step});
 my $fqf = FQF->new( commandline => \%c_opts, );
 
 REPROCESS:
