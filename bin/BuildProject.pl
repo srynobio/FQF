@@ -33,7 +33,7 @@ my $current_path = abs_path('.');
 
 ## Copy config files.
 my @cfg_orig =
-  glob "/uufs/chpc.utah.edu/common/home/u0413537/FQF/data/Config_Files/*cfg";
+  glob "/uufs/chpc.utah.edu/common/home/u0413537/FQF/config/*cfg";
 foreach my $file (@cfg_orig) {
     next if ( $file =~ /master/i );
     copy( $file, $current_path );
