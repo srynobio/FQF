@@ -1,0 +1,148 @@
+#!/usr/bin/env perl
+# createProject
+use strict;
+use warnings;
+use feature 'say';
+use autodie;
+use File::Copy;
+use Getopt::Long;
+use Cwd 'abs_path';
+
+my $usage = << "EOU";
+
+Synopsis:
+
+    createProject -project_name <project name> -data_path <path to data> -background_version <version>
+    createProject -pn Nant-Ostrander-EIEE -dp lustre/project -bv Longevity -brs 
+
+Description:
+
+    createProject will create a project directory, 
+    copy all needed configuration files needed to run FQF.  
+    It will update the data: and fqf_id: fields.  
+    Optionally, it will create a FQFrun.sh script to run all the individual FQF pipeline steps.
+
+Required options:
+
+    -project_name, -pn          :   Name of the project to be run.  Example: "Nant-Ostrander-EIE" 
+                                    A complete list of available project can be found running:
+                                    ugp_db -select Project -from Projects
+
+    -data_path, -dp             :   Path to where the original data lives.
+
+Additional options:
+
+    -background_version, -bv    :   Which backgrounds to use for the FQF.Genotype step.
+                                    Options: 1000G or Longevity [default: 1000G]
+                                    Background path in config will be updated with the correct path.
+
+    -build_run_script, -brs     :   Will build FQFrun.sh script to run all FQF steps. [default: false]
+
+    -help                       :   This usage statement.                                    
+
+EOU
+
+my %c_opts = ();
+GetOptions( \%c_opts, "project_name|pn=s", "data_path|dp=s",
+    "background_version|bv=s", "build_run_script|brs", "help|h", );
+die $usage if $c_opts{help};
+die $usage unless ( $c_opts{project_name} and $c_opts{data_path} );
+
+## make directory
+say "Making project directory...";
+mkdir $c_opts{project_name};
+chdir $c_opts{project_name};
+
+## update data path
+my $data_path    = abs_path( $c_opts{data_path} );
+my $current_path = abs_path('.');
+
+## Copy config files.
+say "Copying FQF config files to $current_path";
+my @cfg_orig = glob "/uufs/chpc.utah.edu/common/home/u0413537/FQF/config/*cfg";
+foreach my $file (@cfg_orig) {
+    next if ( $file =~ /master/i );
+    copy( $file, $current_path );
+}
+
+## get epoch, build background name and path.
+my $epoch = time;
+my @background_collect = (
+    '/scratch/ucgd/lustre/u0413537/UGP_Pipeline_Data/old_backgrounds',
+    '/scratch/ucgd/lustre/u0413537/UGP_Pipeline_Data/Backgrounds'
+);
+my $background_file;
+my $backgrounds = $c_opts{background_version} || '1000G';
+if ($backgrounds eq '1000G') {
+    $backgrounds =~ s/$/-Backgrounds/;
+    $background_file = $background_collect[0];
+}
+elsif ($backgrounds eq 'Longevity') {
+    $backgrounds =~ s/$/Longevity-Backgrounds/;
+    $background_file = $background_collect[1];
+}
+else {
+    say $usage;
+    say "[ERROR] background $backgrounds not a correct options";
+    exit(1);
+}
+
+my $out_filename =
+    'FQF-1.2.1_' . $c_opts{project_name} . '_' . $backgrounds . '_' . $epoch;
+
+## collect cfg files and update path to data
+my @cfgs = glob "*cfg";
+
+say "Updating config files...";
+foreach my $config (@cfgs) {
+    my $data_cmd = 
+        sprintf("perl -p -i -e 's|^data:|data:$data_path|' $config");
+    my $fqf_cmd =
+        sprintf("perl -p -i -e 's|^fqf_id:|fqf_id:$out_filename|' $config");
+    my $back_cmd = 
+        sprintf("perl -p -i -e 's|^backgrounds:|backgrounds:$background_file|' $config");
+    system $data_cmd;
+    system $fqf_cmd;
+    system $back_cmd;
+}
+
+## create run script if asked.
+build_run_script() if ($c_opts{build_run_script} );
+
+## Finished!
+say '################################################';
+say "Confirm data path backgrounds and tool options.";
+say "Finished...!";
+say '################################################';
+
+## --------------------------------- ##
+
+sub build_run_script {
+    say "Building run script...";
+
+    my @config_collect = (
+    '/uufs/chpc.utah.edu/common/home/u0413537/FQF/data/Region_Files/FQF.exon.Region.bed',
+    '/uufs/chpc.utah.edu/common/home/u0413537/FQF/data/Region_Files/FQF.Region.bed'
+    );
+
+    my $sbatch = <<"EOM";
+#!/bin/bash
+
+module load ucgd_modules
+
+FQF -cfg FQF.toGVCF.cfg -il $config_collect[1] -ql 100 -st 10:00:00 -s toGVCF --run  
+FQF -cfg FQF.Genotype.cfg -il $config_collect[0] -ql 100 -st 15:00:00 -s Genotype --run  
+FQF -cfg FQF.QC.cfg -il $config_collect[0] -ql 100 -st 8:00:00 -s QC --run  
+FQF -cfg FQF.WHAM.cfg -il $config_collect[0] -ql 100 -st 10:00:00 -s WHAM --run  
+
+wait
+
+EOM
+    open( my $OUT, '>', 'FQFrun.sh');
+    say $OUT $sbatch;
+
+    system "chmod 755 FQFrun.sh";
+    close $OUT;
+}
+
+## --------------------------------- ##
