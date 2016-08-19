@@ -18,9 +18,11 @@ Synopsis:
 Description:
 
     createProject will create a project directory, 
-    copy all needed configuration files needed to run FQF.  
+    and copy all needed configuration files needed to run FQF.  
     It will update the data: and fqf_id: fields.  
-    Optionally, it will create a FQFrun.sh script to run all the individual FQF pipeline steps.
+
+    Optionally, it can create a FQFrun.sh script to run all the individual FQF pipeline steps.
+    The will be done in the current working directory.
 
 Required options:
 
