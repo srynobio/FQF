@@ -107,7 +107,7 @@ if ( $c_opts{fqf_check} ) {
 }
 
 if ( $c_opts{error_check} ) {
-    system("grep --exclude=\"FQF\" -i 'error' *");
+    system("grep --exclude=\"FQF\" -exclude=\"fastq2bam*\" -exclude=\"bam2gvcf*\" -i 'error' *");
     system("grep -i 'exceptions' *.log-*");
     system("grep -i 'failed' *.log-*");
     exit(0);

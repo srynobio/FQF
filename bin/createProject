@@ -80,7 +80,7 @@ if ($backgrounds eq '1000G') {
     $background_file = $background_collect[0];
 }
 elsif ($backgrounds eq 'Longevity') {
-    $backgrounds =~ s/$/Longevity-Backgrounds/;
+    $backgrounds =~ s/$/-Backgrounds/;
     $background_file = $background_collect[1];
 }
 else {
