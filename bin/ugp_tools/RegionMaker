@@ -12,7 +12,7 @@ my $usage = << "EOU";
 
 Synopsis:
 
-    RegionMaker -f exon -p 25
+    RegionMaker -f <STRING> -p 25
 
 Description:
 
@@ -22,13 +22,13 @@ Description:
 
 Required options:
 
-    --feature|f  : GFF3 feature to create regions. Must match exactly to GFF feature.
+    --feature, -f   : GFF3 feature to create regions. Must match exactly to GFF feature.
 
 Additional options:
 
-    --padding|p  : Additional number of base-pairs to add to the start and end of a region.
+    --padding, -p   : Additional number of base-pairs to add to the start and end of a region.
 
-    --help|h     : Prints this usage statement.
+    --help          : Prints this usage statement.
 
 EOU
 
@@ -36,7 +36,7 @@ my ( $feature, $pad, $help );
 GetOptions(
     "feature|f=s" => \$feature,
     "padding|p=i" => \$pad,
-    "help|h"      => \$help,
+    "help"      => \$help,
 );
 unless ($feature) { croak $usage }
 croak $usage if $help;

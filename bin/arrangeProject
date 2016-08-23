@@ -16,18 +16,18 @@ my $usage = << "EOU";
 Synopsis:
 
     arrangeProject --run
-    arrangeProject -r
 
 Description:
 
     arrangeProject will create all the needed UGP directories, 
     and move all files into their proper locations.
 
-    * Must be ran from the directory created by createProject. *
+    * Must be ran from the directory created by createProject *
+    * or the config file output directory. *
 
 Required options:
 
-    --run, -r   :   Allow arrangeProject to begin.
+    --run   :   Allow arrangeProject to begin.
 
 Additional options:
 

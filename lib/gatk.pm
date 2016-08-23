@@ -426,10 +426,7 @@ sub CombineVariants {
     my @app_snp = map { "--variant $_ " } @{$snp_files};
     my @app_ind = map { "--variant $_ " } @{$indel_files};
 
-    my $output =
-        $config->{output}
-      . $config->{fqf_id}
-      . "_Final+Backgrounds+Longevity.vcf";
+    my $output = $config->{output} . $config->{fqf_id} . ".vcf";
     $self->file_store($output);
 
     my @cmds;

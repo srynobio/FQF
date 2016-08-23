@@ -12,14 +12,14 @@ my $usage = << "EOU";
 
 Synopsis:
 
-    createProject -project_name <project name> -data_path <path to data> -background_version <version>
+    createProject -project_name <STRING> -data_path <PATH> -background_version <STRING>
     createProject -pn Nant-Ostrander-EIEE -dp lustre/project -bv Longevity -brs 
 
 Description:
 
     createProject will create a project directory, 
-    and copy all needed configuration files needed to run FQF.  
-    It will update the data: and fqf_id: fields.  
+    and copy all configuration files needed to run FQF.  
+    It will also update the \"data:\" and \"fqf_id:\" fields of the config files.
 
     Optionally, it can create a FQFrun.sh script to run all the individual FQF pipeline steps.
     The will be done in the current working directory.

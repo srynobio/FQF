@@ -8,7 +8,8 @@ use autodie;
 my $GVCF_PATH     = '/UGP/VCF/GVCFs';
 my $ANALYSIS_PATH = '/scratch/ucgd/lustre/ugpuser/Repository/AnalysisData';
 
-my $analysis_id = $ARGV[0] or die "Please enter Analysis id.";
+my $analysis_id = $ARGV[0]
+  or die "Please enter UGP-GNomEx Analysis id for the project.";
 
 my $find_cmd = "find $ANALYSIS_PATH -name \"$analysis_id\"";
 my @result   = `$find_cmd`;

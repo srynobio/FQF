@@ -10,16 +10,16 @@ use Getopt::Long;
 my $usage = << "EOU";
 
 Synopsis:
-    ./FQF -cfg <file.cfg> -il <interval_file> > command_review.txt
-    ./FQF -cfg <file.cfg> -il <interval_file> --run
-    ./FQF -cfg <file.cfg> -il <interval_file> -f <file_list> --run
+    ./FQF -cfg <FILE> -il <PATH> > command_review.txt
+    ./FQF -cfg <FILE> -il <PATH> --run
+    ./FQF -cfg <FILE> -il <PATH> -f <FILE>> --run
     ./FQF -ec
     ./FQF -c
 
 Description:
 
     FQF is a NGS pipeline created for the 
-    Utah Genome Project (UGP) and The Utah Center for Genetic Discovery (UCGD)
+    Utah Genome Project (UGP) and The USTAR Center for Genetic Discovery (UCGD)
 
     Additional Protocol documentation here: http://weatherby.genetics.utah.edu/UGP/wiki/index.php/UGP_Variant_Protocol
 
