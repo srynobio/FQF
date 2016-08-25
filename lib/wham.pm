@@ -48,14 +48,16 @@ sub whamg_svtper {
         my $output =
             $config->{output}
           . $file->{parts}[0]
-          . "_unfiltered.genotype.wham.vcf";
+          . ".unfiltered.genotype.wham.vcf";
+        $output =~ s/\.bam//g;
+
         $self->file_store($output);
 
         my $threads;
         ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
 
         ## create temp.
-        my $temp_bam = $config->{output} . $file->{parts}[0] . "_temp.vcf";
+        my $temp_bam = $config->{output} . $file->{parts}[0] . ".temp.vcf";
         my $temp_log = $config->{output} . $file->{parts}[0] . ".log";
 
         my $cmd = sprintf(
