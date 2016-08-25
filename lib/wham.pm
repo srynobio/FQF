@@ -28,12 +28,12 @@ sub _build_seqid_skip {
 
 ##-----------------------------------------------------------
 
-sub wham_graphing {
+sub whamg_svtper {
     my $self = shift;
     $self->pull;
 
     my $config = $self->class_config;
-    my $opts   = $self->tool_options('wham_graphing');
+    my $opts   = $self->tool_options('whamg');
     my $files  = $self->file_retrieve('fastq2bam');
 
     my $skip_ids = $self->seqid_skip;
@@ -44,234 +44,29 @@ sub wham_graphing {
 
         next unless ( $bam =~ /bam$/ );
 
-        my $file   = $self->file_frags($bam);
-        my $output = $config->{output} . $file->{parts}[0] . "_WHAM.vcf";
+        my $file = $self->file_frags($bam);
+        my $output =
+            $config->{output}
+          . $file->{parts}[0]
+          . "_unfiltered.genotype.wham.vcf";
         $self->file_store($output);
 
         my $threads;
         ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
 
-        my $cmd = sprintf( "%s/WHAM-GRAPHENING -a %s -k -x %s -f %s -e %s > %s",
-            $config->{wham}, $config->{fasta}, $threads, $bam, $skip_ids,
-            $output );
+        ## create temp.
+        my $temp_bam = $config->{output} . $file->{parts}[0] . "_temp.vcf";
+        my $temp_log = $config->{output} . $file->{parts}[0] . ".log";
+
+        my $cmd = sprintf(
+            "whamg -a %s -x %s -f %s -e %s > %s 2> %s && svtyper -B %s -i %s -o %s && rm %s",
+            $config->{fasta}, $threads,  $bam, $skip_ids,
+            $temp_bam,        $temp_log, $bam, $temp_bam,
+            $output,          $temp_bam
+        );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
-}
-
-##-----------------------------------------------------------
-
-sub wham_filter {
-    my $self = shift;
-    $self->pull;
-
-    my $config = $self->class_config;
-    my $opts   = $self->tool_options('wham_filter');
-    my $files  = $self->file_retrieve('wham_graphing');
-
-    ## just temp the first item to get info.
-    my $parts = $self->file_frags( $files->[0] );
-
-    my @cmds;
-    foreach my $wham ( @{$files} ) {
-        chomp $wham;
-
-        ( my $output = $wham ) =~ s/_WHAM.vcf/_filtered.WHAM.vcf/;
-        $self->file_store($output);
-
-        my $cmd = sprintf( "cat %s | %s -filter -o %s",
-            $wham, $self->software->{wham_utils}, $output );
-        push @cmds, $cmd;
-    }
-    $self->bundle( \@cmds );
-}
-
-##-----------------------------------------------------------
-
-sub wham_sort {
-    my $self = shift;
-    $self->pull;
-
-    my $config = $self->class_config;
-    my $opts   = $self->tool_options('wham_sort');
-    my $files  = $self->file_retrieve('wham_filter');
-
-    my $output = $config->{output} . $config->{fqf_id} . "_WHAM.filtered.vcf";
-    $self->file_store($output);
-
-    my $joined = join( " ", @{$files} );
-
-    my $cmd = sprintf(
-"cat %s >> %swham.tmp && sort -T %s -k1,1 -k2,2n %swham.tmp -o %s && rm %swham.tmp",
-        $joined,           $config->{output}, '/tmp',
-        $config->{output}, $output,           $config->{output}
-    );
-
-    $self->bundle( \$cmd );
-}
-
-##-----------------------------------------------------------
-
-sub wham_merge_indiv {
-    my $self = shift;
-    $self->pull;
-
-    my $config = $self->class_config;
-    my $opts   = $self->tool_options('wham_merge_indiv');
-    my $files  = $self->file_retrieve('wham_sort');
-
-    ( my $output = $files->[0] ) =~ s/_WHAM.filtered.vcf/_mergeIndv.vcf/;
-
-    my $cmd = sprintf( "%s/mergeIndvs -f %s -s %s > %s",
-        $config->{wham}, $files->[0], $opts->{s}, $output );
-    $self->file_store($output);
-    $self->bundle( \$cmd );
-}
-
-##-----------------------------------------------------------
-
-sub wham_splitter {
-    my $self = shift;
-    $self->pull;
-
-    unless ( $self->execute ) {
-        $self->WARN( "Review of wham_splitter command not possible "
-              . "only generated during run." );
-        return;
-    }
-
-    my $files = $self->file_retrieve('wham_merge_indiv');
-
-    # open to get content.
-    open( my $FH, '<', $files->[0] );
-    my @lines;
-    while (<$FH>) {
-        push @lines, $_;
-    }
-    close $FH;
-
-    my @sections;
-    push @sections, [ splice @lines, 0, 200 ] while @lines;
-
-    ## get file parts
-    my $frags = $self->file_frags( $files->[0] );
-
-    ## test if tmps file already exist.
-    my $tmp_files = $frags->{path} . 'UGP_split_temp_*';
-    my @tmp_trash = glob <"$tmp_files">;
-    if (@tmp_trash) {
-        $self->WARN("Removing old UGP_split_temp_* files.");
-        unlink @tmp_trash;
-    }
-    $self->WARN("wham_splitter creating files of 200 per-file.");
-
-    my @cmds;
-    my $id;
-    for my $chunk (@sections) {
-        $id++;
-        my $output = $frags->{path} . 'UGP_split_temp_' . $id . '_WHAM.vcf';
-        open( my $OUT, '>>', $output );
-        $self->file_store($output);
-        map { print $OUT $_ } @{$chunk};
-    }
-}
-
-##-----------------------------------------------------------
-
-sub wham_genotype {
-    my $self = shift;
-    $self->pull;
-
-    unless ( $self->execute ) {
-        $self->WARN( "Review of wham_genotype command not possible "
-              . "only generated during run." );
-        return;
-    }
-
-    my $config    = $self->class_config;
-    my $opts      = $self->tool_options('wham_genotype');
-    my $files     = $self->file_retrieve('wham_splitter');
-    my $fqf_files = $self->file_retrieve('fastq2bam');
-
-    my @bam_files = grep { $_ =~ /bam$/ } @{$fqf_files};
-
-    my $join_bams = join( ",", @bam_files );
-    my $skip_ids = $self->seqid_skip;
-
-    my @cmds;
-    for my $indiv ( @{$files} ) {
-        chomp $indiv;
-
-        ( my $output = $indiv ) =~ s/_WHAM.vcf/_genotyped_WHAM.vcf/;
-        $self->file_store($output);
-
-        my $threads;
-        ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
-
-        my $cmd =
-          sprintf( "%s/WHAM-GRAPHENING -a %s -x %s -f %s -e %s -b %s > %s",
-            $config->{wham}, $config->{fasta}, $threads, $join_bams, $skip_ids,
-            $indiv, $output );
-        push @cmds, $cmd;
-    }
-    $self->bundle( \@cmds );
-}
-
-##-----------------------------------------------------------
-
-sub wham_genotype_cat {
-    my $self = shift;
-    $self->pull;
-
-    unless ( $self->execute ) {
-        $self->WARN( "Review of wham_genotype_cat command not possible "
-              . "only generated during run." );
-        return;
-    }
-
-    my $config = $self->class_config;
-    my $opts   = $self->tool_options('wham_genotype_cat');
-    my $files  = $self->file_retrieve('wham_genotype');
-
-    ## get file info
-    my $parts       = $self->file_frags( $files->[0] );
-    my $header      = $parts->{path} . $config->{fqf_id} . "_header.txt";
-    my $tmp_output  = $parts->{path} . $config->{fqf_id} . "_tmp.WHAM.vcf";
-    my $sort_output = $parts->{path} . $config->{fqf_id} . "_sort.WHAM.vcf";
-    my $output      = $parts->{path} . $config->{fqf_id} . "_Final.WHAM.vcf";
-    $self->file_store($output);
-
-    ## open and print header file.
-    open( my $FH, '<', $files->[0] )
-      or $self->ERROR("Needed WHAM files not found.");
-    open( my $HEADER, '>>', $header )
-      or $self->ERROR("Can not create needed header file.");
-
-    while (<$FH>) {
-        chomp $_;
-        if ( $_ =~ /^#/ ) {
-            print $HEADER "$_\n";
-        }
-    }
-    close $FH;
-    close $HEADER;
-
-    open( my $OUT, '>>', $tmp_output );
-    foreach my $gtype ( @{$files} ) {
-        open( my $FH, '<', $gtype );
-
-        while (<$FH>) {
-            chomp $_;
-            next if ( $_ =~ /^#/ );
-            print $OUT "$_\n";
-        }
-        close $FH;
-    }
-    close $OUT;
-
-    my $cmd = sprintf( "sort -k1,1 -k2,2n %s > %s && cat %s %s > %s && rm %s",
-        $tmp_output, $sort_output, $header, $sort_output, $output, $header );
-    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------
@@ -280,20 +75,16 @@ sub wham_bgzip {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->class_config;
-    my $opts   = $self->tool_options('bgzip');
-    my $combine_file = $self->file_retrieve('wham_genotype_cat');
+    my $config     = $self->class_config;
+    my $opts       = $self->tool_options('wham_bgzip');
+    my $typer_file = $self->file_retrieve('whamg_svtyper');
 
-    my $output_file  = "$combine_file->[0]" . '.gz';
+    my $output_file = "$typer_file->[0]" . '.gz';
 
     $self->file_store($output_file);
 
     ## dup step need different path to software.
-    my $cmd = sprintf(
-        "%s/bgzip -c %s > %s",
-        $self->{software}->{tabix},
-        $combine_file->[0], $output_file
-    );
+    my $cmd = sprintf( "bgzip -c %s > %s", $typer_file->[0], $output_file );
     $self->bundle( \$cmd );
 }
 
@@ -303,17 +94,12 @@ sub wham_tabix {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->class_config;
-    my $opts   = $self->tool_options('tabix');
-
-    my $combine_file = $self->file_retrieve('wham_bgzip');
+    my $config       = $self->class_config;
+    my $opts         = $self->tool_options('tabix');
+    my $bgziped_file = $self->file_retrieve('wham_bgzip');
 
     ## dup step need different path to software.
-    my $cmd = sprintf(
-        "%s/tabix -p vcf %s",
-        $self->{software}->{tabix},
-        $combine_file->[0]
-    );
+    my $cmd = sprintf( "tabix -p vcf %s", $bgziped_file->[0] );
     $self->bundle( \$cmd );
 }
 

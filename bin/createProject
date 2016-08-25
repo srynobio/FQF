@@ -31,6 +31,8 @@ Required options:
                                     ugp_db -select Project -from Projects
 
     -data_path, -dp             :   Path to where the original data lives.
+    
+    -sequence_type, -st         :   Type of sequence experiment. WGS or WES.
 
 Additional options:
 
@@ -48,7 +50,7 @@ my %c_opts = ();
 GetOptions( \%c_opts, "project_name|pn=s", "data_path|dp=s",
     "background_version|bv=s", "build_run_script|brs", "help|h", );
 die $usage if $c_opts{help};
-die $usage unless ( $c_opts{project_name} and $c_opts{data_path} );
+die $usage unless ( $c_opts{project_name} and $c_opts{data_path} and $c_opts{sequence_type});
 
 ## make directory
 say "Making project directory...";
@@ -61,7 +63,7 @@ my $current_path = abs_path('.');
 
 ## Copy config files.
 say "Copying FQF config files to $current_path";
-my @cfg_orig = glob "/uufs/chpc.utah.edu/common/home/u0413537/FQF/config/*cfg";
+my @cfg_orig = glob "/uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/FQF/1.2.1/config/*cfg";
 foreach my $file (@cfg_orig) {
     next if ( $file =~ /master/i );
     copy( $file, $current_path );
@@ -70,7 +72,7 @@ foreach my $file (@cfg_orig) {
 ## get epoch, build background name and path.
 my $epoch = time;
 my @background_collect = (
-    '/scratch/ucgd/lustre/u0413537/UGP_Pipeline_Data/old_backgrounds',
+    '/scratch/ucgd/lustre/u0413537/UGP_Pipeline_Data/1000G_Backgrounds',
     '/scratch/ucgd/lustre/u0413537/UGP_Pipeline_Data/Backgrounds'
 );
 my $background_file;
@@ -112,10 +114,10 @@ foreach my $config (@cfgs) {
 build_run_script() if ($c_opts{build_run_script} );
 
 ## Finished!
-say '################################################';
+say '#---------------------------------------------#';
 say "Confirm data path backgrounds and tool options.";
 say "Finished...!";
-say '################################################';
+say '#---------------------------------------------#';
 
 ## --------------------------------- ##
 
@@ -123,9 +125,17 @@ sub build_run_script {
     say "Building run script...";
 
     my @config_collect = (
-    '/uufs/chpc.utah.edu/common/home/u0413537/FQF/data/Region_Files/FQF.exon.Region.bed',
-    '/uufs/chpc.utah.edu/common/home/u0413537/FQF/data/Region_Files/FQF.Region.bed'
+        '/uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/FQF/1.2.1/data/Region_Files/FQF.exon.Region.bed',
+        '/uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/FQF/1.2.1/data/Region_Files/FQF.Region.bed',
     );
+
+    my $regions;
+    if ( $c_opts{sequence_type} eq 'WGS' ) {
+        $regions = $config_collect[1];
+    }
+    elsif ( $c_opts{sequence_type} eq 'WES' ) {
+        $regions = $config_collect[0];
+    }
 
     my $sbatch = <<"EOM";
 #!/bin/bash
@@ -133,9 +143,9 @@ sub build_run_script {
 module load ucgd_modules
 
 FQF -cfg FQF.toGVCF.cfg -il $config_collect[1] -ql 100 -st 10:00:00 -s toGVCF --run  
-FQF -cfg FQF.Genotype.cfg -il $config_collect[0] -ql 100 -st 15:00:00 -s Genotype --run  
-FQF -cfg FQF.QC.cfg -il $config_collect[0] -ql 100 -st 8:00:00 -s QC --run  
-FQF -cfg FQF.WHAM.cfg -il $config_collect[0] -ql 100 -st 10:00:00 -s WHAM --run  
+FQF -cfg FQF.Genotype.cfg -il $regions -ql 100 -st 15:00:00 -s Genotype --run  
+FQF -cfg FQF.QC.cfg -il $regions -ql 100 -st 8:00:00 -s QC --run  
+FQF -cfg FQF.WHAM.cfg -il $regions -ql 100 -st 10:00:00 -s WHAM --run  
 
 wait
 
