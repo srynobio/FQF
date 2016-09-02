@@ -48,7 +48,7 @@ EOU
 
 my %c_opts = ();
 GetOptions( \%c_opts, "project_name|pn=s", "data_path|dp=s",
-    "background_version|bv=s", "build_run_script|brs", "help|h", );
+    "background_version|bv=s", "build_run_script|brs", "sequence_type|st=s", "help|h", );
 die $usage if $c_opts{help};
 die $usage unless ( $c_opts{project_name} and $c_opts{data_path} and $c_opts{sequence_type});
 
@@ -157,4 +157,5 @@ EOM
     close $OUT;
 }
 
-## --------------------------------- ##
+## --------------------------------- #
+

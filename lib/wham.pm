@@ -28,12 +28,12 @@ sub _build_seqid_skip {
 
 ##-----------------------------------------------------------
 
-sub whamg_svtper {
+sub whamg_svtyper {
     my $self = shift;
     $self->pull;
 
     my $config = $self->class_config;
-    my $opts   = $self->tool_options('whamg');
+    my $opts   = $self->tool_options('whamg_svtyper');
     my $files  = $self->file_retrieve('fastq2bam');
 
     my $skip_ids = $self->seqid_skip;
@@ -81,13 +81,18 @@ sub wham_bgzip {
     my $opts       = $self->tool_options('wham_bgzip');
     my $typer_file = $self->file_retrieve('whamg_svtyper');
 
-    my $output_file = "$typer_file->[0]" . '.gz';
+    my @cmds;
+    foreach my $vcf ( @{$typer_file} ) {
+        chomp $vcf;
+        next unless ( $vcf =~ /genotype.wham.vcf/ );
 
-    $self->file_store($output_file);
+        my $output_file = $vcf . '.gz';
+        $self->file_store($output_file);
 
-    ## dup step need different path to software.
-    my $cmd = sprintf( "bgzip -c %s > %s", $typer_file->[0], $output_file );
-    $self->bundle( \$cmd );
+        my $cmd = sprintf( "bgzip -c %s > %s", $vcf, $output_file );
+        push @cmds, $cmd;
+    }
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
@@ -100,9 +105,15 @@ sub wham_tabix {
     my $opts         = $self->tool_options('tabix');
     my $bgziped_file = $self->file_retrieve('wham_bgzip');
 
-    ## dup step need different path to software.
-    my $cmd = sprintf( "tabix -p vcf %s", $bgziped_file->[0] );
-    $self->bundle( \$cmd );
+    my @cmds;
+    foreach my $bg ( @{$bgziped_file} ) {
+        chomp $bg;
+
+        ## dup step need different path to software.
+        my $cmd = sprintf( "tabix -p vcf %s", $bg );
+        push @cmds, $cmd;
+    }
+    $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
