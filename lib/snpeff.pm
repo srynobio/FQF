@@ -15,7 +15,7 @@ sub snpeff_run {
 
     my $config = $self->class_config;
     my $opts   = $self->tool_options('snpeff_run');
-    my $vcf    = $self->file_retrieve;
+    my $vcf    = $self->file_retrieve('CombineVariants');
 
     my @cmds;
     foreach my $file ( @{$vcf} ) {

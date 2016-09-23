@@ -28,7 +28,7 @@ sub _build_indels {
 
     $self->ERROR('Issue building known indels from file') unless ($knowns);
 
-    my $k_indels = join(',', @{$knowns});
+    my $k_indels = join( ',', @{$knowns} );
     $self->indels($k_indels);
 }
 
@@ -56,7 +56,7 @@ sub fastq2bam {
     foreach my $fq ( @{$files} ) {
         chomp $fq;
         next if ( $fq !~ /(fq$|fastq$)/ );
-        my ($filename, $dirs) = fileparse($fq);
+        my ( $filename, $dirs ) = fileparse($fq);
 
         if ( $filename =~ /\_/ ) {
             my ( $indiv, undef ) = split /_/, $filename;
@@ -76,7 +76,7 @@ sub fastq2bam {
         my $fileref = $id_list{$people};
         my @s_files = sort @$fileref;
 
-        if ( ! $opts->{type} ) {
+        if ( !$opts->{type} ) {
             $self->ERROR("config fastqforward option for type not given");
         }
 
@@ -102,8 +102,7 @@ sub fastq2bam {
 
             $id_count++;
             my $uniq_id = $file1->{parts}[0] . "_" . $id_count;
-            my $r_group =
-                "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
+            my $r_group = "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
 
             my $single_format =
               "-align \'Files=$single;Type=UNPAIRED;RG=$r_group\'";
@@ -145,8 +144,7 @@ sub fastq2bam {
 
             $id_count++;
             my $uniq_id = $file1->{parts}[0] . "_" . $id_count;
-            my $r_group =
-                "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
+            my $r_group = "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
 
             my $pair_format =
               "-align \'Files=$pair1,$pair2;Type=PAIRED;RG=$r_group\'";
@@ -179,8 +177,7 @@ sub fastq2bam {
 
                 $id_count++;
                 my $uniq_id = $file1->{parts}[0] . "_" . $id_count;
-                my $r_group =
-                    "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
+                my $r_group = "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
 
                 ## FQF will make these output files for you.
                 ## created here to add to object.
@@ -210,68 +207,6 @@ sub fastq2bam {
 }
 
 ##-----------------------------------------------------------
-
-#sub fastq2bam {
-#    my $self = shift;
-#    $self->pull;
-#
-#    my $config = $self->class_config;
-#    my $opts   = $self->tool_options('fqf');
-#    my $files  = $self->file_retrieve('uncompress');
-#
-#    my @seq_files;
-#    foreach my $file ( @{$files} ) {
-#        chomp $file;
-#        next unless ( $file =~ /(fastq$|fq$|txt)/ );
-#        push @seq_files, $file;
-#    }
-#
-#    # must have matching pairs.
-#    if ( scalar @seq_files % 2 ) {
-#        $self->ERROR( "FQ files must be matching pairs. " );
-#    }
-#
-#    my @cmds;
-#    my $id   = '1';
-#    my $pair = '1';
-#    while (@seq_files) {
-#        my $file1 = $self->file_frags( shift @seq_files );
-#        my $file2 = $self->file_frags( shift @seq_files );
-#
-#        # collect tag and uniquify the files.
-#        my $tags     = $file1->{parts}[0];
-#
-#        ## FQF will make these output files for you.
-#        ## created here to add to object.
-#        my $path = $config->{output} . $tags;
-#        my $path_bam = $path . ".bam";
-#
-#        # store the output files.
-#        $self->file_store($path_bam);
-#        
-#        my $uniq_id = $file1->{parts}[0] . "_" . $id;
-#        my $r_group =
-#          '\'@RG' . "\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id\'";
-#
-#        next if ( $self->file_exist($path_bam) );
-#        my $cmd = sprintf(
-#           "ibrun FastQforward.pl fastq2bam -rg %s -fq %s -fq2 %s "
-#           . "-ref %s -known_indels %s -o %s -hyperthread",
-#            $r_group,                    
-#            $file1->{full},              
-#            $file2->{full},
-#            $config->{fasta},
-#            $self->indels,
-#            $path_bam
-#        );
-#        push @cmds, $cmd;
-#        $id++;
-#    }
-#    $self->bundle( \@cmds );
-#    return;
-#}
-
-##----------------------------------------------------------
 
 sub bam2gvcf {
     my $self = shift;
@@ -309,71 +244,6 @@ sub bam2gvcf {
 
 ##-----------------------------------------------------------
 
-sub fastq2gvcf {
-    my $self = shift;
-    $self->pull;
-
-    my $config = $self->class_config;
-    my $opts   = $self->tool_options('fqf');
-    my $files  = $self->file_retrieve('uncompress');
-    #my $files  = $self->file_retrieve('nantomics_bam2fastq');
-
-    my @seq_files;
-    foreach my $file ( @{$files} ) {
-        chomp $file;
-        next unless ( $file =~ /(fastq$|fq$)/ );
-        push @seq_files, $file;
-    }
-
-    # must have matching pairs.
-    if ( scalar @seq_files % 2 ) {
-        $self->ERROR( "FQ files must be matching pairs. " );
-    }
-
-    my @cmds;
-    my $id   = '1';
-    my $pair = '1';
-    while (@seq_files) {
-        my $file1 = $self->file_frags( shift @seq_files );
-        my $file2 = $self->file_frags( shift @seq_files );
-
-        # collect tag and uniquify the files.
-        my $tags     = $file1->{parts}[0];
-
-        ## FQF will make these output files for you.
-        ## created here to add to object.
-        my $path = $config->{output} . $tags;
-        my $path_bam = $path . ".bam";
-        my $path_vcf = $path . ".g.vcf";
-
-        # store the output files.
-        $self->file_store($path_bam);
-        $self->file_store($path_vcf);
-        
-        my $uniq_id = $file1->{parts}[0] . "_" . $id;
-        my $r_group =
-          '\'@RG' . "\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id\'";
-
-        my $cmd = sprintf(
-           "ibrun FastQforward.pl fastq2vcf -rg %s -fq %s -fq2 %s "
-           . "-ref %s -known_snps %s -known_indels %s -o %s -hyperthread",
-            $r_group,                    
-            $file1->{full},              
-            $file2->{full},
-            $config->{fasta},
-            $self->snps,
-            $self->indels,
-            $path
-        );
-        push @cmds, $cmd;
-        $id++;
-    }
-    $self->bundle( \@cmds );
-    return;
-}
-
-##-----------------------------------------------------------
-
 sub lossless_valadate {
     my $self = shift;
     $self->pull;
@@ -390,16 +260,13 @@ sub lossless_valadate {
         $bam =~ s/\.bam$//g;
 
         my $cmd = sprintf( "lossless_validator.pl -c %s %s %s %s > %s",
-            $opts->{cpu}, "$bam.bam", 
-            "$bam\_*1*.fastq", "$bam\_*2*.fastq",
-            "$bam.lossless.result" 
-        );
+            $opts->{cpu}, "$bam.bam", "$bam\_*1*.fastq", "$bam\_*2*.fastq",
+            "$bam.lossless.result" );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }
 
 ##-----------------------------------------------------------
-
 
 1;

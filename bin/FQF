@@ -96,7 +96,7 @@ if ( $c_opts{version} ) {
 
 # set up commandline defaults.
 if ( $c_opts{clean} ) {
-    `rm -rf core.* *.log* CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp`;
+    `rm -rf core.* *.log* CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp *theVoid`;
     exit(0);
 }
 
@@ -132,7 +132,8 @@ if ($c_opts{step} eq 'toGVCF') {
     my @gvcf_founds = grep { $_ =~ /not found/ } @gvcfs;
 
     if ( @bam_founds or @gvcf_founds) {
-        system "rm PROGRESS";
+        system "perl -p -i -e 's/fastq2bam:complete//' PROGRESS";
+        system "perl -p -i -e 's/bam2gvcf:complete//' PROGRESS";
         goto REPROCESS;
     }
 }

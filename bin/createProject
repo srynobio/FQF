@@ -72,8 +72,8 @@ foreach my $file (@cfg_orig) {
 ## get epoch, build background name and path.
 my $epoch = time;
 my @background_collect = (
-    '/scratch/ucgd/lustre/u0413537/UGP_Pipeline_Data/1000G_Backgrounds',
-    '/scratch/ucgd/lustre/u0413537/UGP_Pipeline_Data/Backgrounds'
+    '/scratch/ucgd/lustre/ugpuser/ucgd_data/1000G_Backgrounds',
+    '/scratch/ucgd/lustre/ugpuser/ucgd_data/Backgrounds'
 );
 my $background_file;
 my $backgrounds = $c_opts{background_version} || '1000G';
@@ -114,12 +114,23 @@ foreach my $config (@cfgs) {
 build_run_script() if ($c_opts{build_run_script} );
 
 ## Finished!
-say '#---------------------------------------------#';
-say "Confirm data path backgrounds and tool options.";
-say "Finished...!";
-say '#---------------------------------------------#';
+my $endMessage = << "EOU";
 
-## --------------------------------- ##
+#---------------------------------------------#
+
+* All nodes set to default (ucgd-kp)
+* Please select version of bam2fastq (if using).
+* Please Confirm data paths backgrounds selected and tool options.
+  in all cfg files.
+
+Finished...!
+
+#---------------------------------------------#';
+
+EOU
+say $endMessage;
+
+## --------------------------------- #
 
 sub build_run_script {
     say "Building run script...";
@@ -143,7 +154,7 @@ sub build_run_script {
 module load ucgd_modules
 
 FQF -cfg FQF.toGVCF.cfg -il $config_collect[1] -ql 100 -st 10:00:00 -s toGVCF --run  
-FQF -cfg FQF.Genotype.cfg -il $regions -ql 100 -st 15:00:00 -s Genotype --run  
+FQF -cfg FQF.Genotype.cfg -il $regions -ql 100 -st 72:00:00 -s Genotype --run  
 FQF -cfg FQF.QC.cfg -il $regions -ql 100 -st 8:00:00 -s QC --run  
 FQF -cfg FQF.WHAM.cfg -il $regions -ql 100 -st 10:00:00 -s WHAM --run  
 
