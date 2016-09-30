@@ -85,7 +85,7 @@ GetOptions(
 die $usage if $fqf_opts{help};
 
 ## add version
-$fqf_opts{pipeline_version} = '1.2.1';
+$fqf_opts{pipeline_version} = '1.2.2';
 
 ## version check
 if ( $fqf_opts{version} ) {
