@@ -48,11 +48,15 @@ die $usage unless ($c_opts{run});
 ## remove unneeded
 say "Removing unneeded files...";
 my @to_rm = glob("*theVoid chr* temp-core* *cfg PROGRESS*");
-unlink @to_rm if @to_rm;
+foreach my $trash (@to_rm) {
+    chomp $trash;
+    system("rm -rf $trash");
+}
 
 ## create the needed directories
 say "Building needed directories...";
 make_path(
+    'Analysis',
     'Data/PolishedBams',     'Data/Primary_Data',
     'Reports/RunLogs',       'Reports/fastqc',
     'Reports/flagstat',      'Reports/stats',
@@ -63,7 +67,6 @@ make_path(
 
 ## list of all the file types to collect.
 ## maintain order
-## Please see file perltidy.ERR
 my @file_types = (
     "bam",          "bam.bai",
     "fastq",        "fq",

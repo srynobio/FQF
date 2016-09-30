@@ -12,7 +12,7 @@ my $usage = << "EOU";
 Synopsis:
     ./FQF -cfg <FILE> -il <PATH> > command_review.txt
     ./FQF -cfg <FILE> -il <PATH> --run
-    ./FQF -cfg <FILE> -il <PATH> -f <FILE>> --run
+    ./FQF -cfg <FILE> -il <PATH> -f <FILE> --run
     ./FQF -ec
     ./FQF -c
 
@@ -27,6 +27,8 @@ Description:
 Required options:
 
     --config, -cfg          FQF configuration file.
+
+    --mode, -m              Which step of the pipeline you want to run.  
 
     --step, -s              Which step of the pipeline you want to run.  
                             Current steps implemented: toGVCF, QC, Genotype, WHAM
@@ -54,8 +56,6 @@ Additional options:
 
     --command_dump, -cd     Will print to STDOUT full stack of commands.
 
-    --uid                   University of Utah id to run as. [Default \$ENV{USER}]
-
     --clean, -c             Will clean up all log, data, slurm, index and report files.
 
     --version, -v           Print FQF version.
@@ -64,17 +64,16 @@ Additional options:
 
 EOU
 
-my %c_opts = ();
+my %fqf_opts = ();
 GetOptions(
-    \%c_opts,              
+    \%fqf_opts,              
     "config|cfg=s",
     "interval_list|il=s",
-    "step|s=s",
+    "mode|m=s",
     "file|f=s",
     "jobs_per_node|jpn=i", 
     "qstat_limit|ql=i",
     "sbatch_time|st=s", 
-    "uid=s",
     "command_dump|cd",
     "fqf_check|fc",
     "error_check|ec",      
@@ -83,48 +82,56 @@ GetOptions(
     "clean|c",             
     "help|h",              
 );
-die $usage if $c_opts{help};
+die $usage if $fqf_opts{help};
 
 ## add version
-$c_opts{pipeline_version} = '1.2.1';
+$fqf_opts{pipeline_version} = '1.2.1';
 
 ## version check
-if ( $c_opts{version} ) {
-    say "FQF version: ", $c_opts{pipeline_version};
+if ( $fqf_opts{version} ) {
+    say "FQF version: ", $fqf_opts{pipeline_version};
     exit(0);
 }
 
 # set up commandline defaults.
-if ( $c_opts{clean} ) {
+if ( $fqf_opts{clean} ) {
     `rm -rf core.* *.log* CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp *theVoid`;
     exit(0);
 }
 
-if ( $c_opts{fqf_check} ) {
+if ( $fqf_opts{fqf_check} ) {
     system("grep 'BAM  -->' fastq2bam.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'");
     system("grep 'gVCF  -->' bam2gvcf.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'");
     exit(0);
 }
 
-if ( $c_opts{error_check} ) {
-    system("grep -i error *log*");
-    system("grep -i 'exceptions' *.log-*");
-    system("grep -i 'failed' *.log-*");
+## error checks.
+if ( $fqf_opts{error_check} ) {
+    my @current_files = glob <"*">;
+    foreach my $review ( @current_files) {
+        chomp $review;
+        next if ( ! $review =~ /log$/ );
+        system("grep -i 'error' $review");
+        system("grep -i 'failed' $review");
+        system("grep -i 'exceptions' $review");
+    }
     exit(0);
 }
-die "Required options not met\n$usage" unless ( $c_opts{config} and $c_opts{step});
+
+## check before moving on.
+die "Required options not met\n$usage" unless ( $fqf_opts{config} and $fqf_opts{step});
 
 ## check if running toGVCF
-if ( $c_opts{step} eq 'toGVCF' ) {
-    die "interval list file needed\n" unless ($c_opts{interval_list});
+if ( $fqf_opts{step} eq 'toGVCF' ) {
+    die "interval list file needed\n" unless ($fqf_opts{interval_list});
 }
-#die "Required options not met\n$usage" unless ( $c_opts{interval_list} and $c_opts{config} and $c_opts{step});
-my $fqf = FQF->new( commandline => \%c_opts, );
+
+my $fqf = FQF->new( commandline => \%fqf_opts, );
 
 REPROCESS:
 $fqf->pipeline;
 
-if ($c_opts{step} eq 'toGVCF') {
+if ($fqf_opts{step} eq 'toGVCF') {
     my @bams  = `grep 'BAM  -->' fastq2bam.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
     my @gvcfs = `grep 'gVCF  -->' bam2gvcf.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
 

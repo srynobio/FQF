@@ -58,7 +58,7 @@ has uid => (
     is      => 'ro',
     default => sub {
         my $self = shift;
-        return $self->commandline->{uid} || $ENV{USER};
+        return $ENV{USER};
     },
 );
 
@@ -115,7 +115,8 @@ sub pipeline {
 
             open( my $OUT, '>', "$sub.cmd.txt" );
 
-            map { say $OUT $_ } @{ $stack->{$sub} };
+            map { say $OUT $_ } @{ $stack->{$sub} }
+              if ( $self->commandline->{command_dump} );
             map { say "Review $_" } @{ $stack->{$sub} };
 
             delete $stack->{$sub};
