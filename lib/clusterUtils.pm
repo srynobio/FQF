@@ -43,18 +43,18 @@ sub ucgd {
 #SBATCH -p ucgd-kp
 #SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/$user/.bashrc
+source /scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 module load ucgd_modules
 
 # clean up before start
-find /scratch/local/ -user $user -exec rm -rf {} \\; 
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 $cmdNode
 
 wait
 
 # clean up after finish.
-find /scratch/local/ -user $user -exec rm -rf {} \\; 
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_postrun
 
 EOM
     return $sbatch;
@@ -89,18 +89,18 @@ sub kingspeak_guest {
 #SBATCH -p kingspeak-guest
 #SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/$user/.bashrc
+source /scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 module load ucgd_modules
 
 # clean up before start
-find /scratch/local/ -user $user -exec rm -rf {} \\; 
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 $cmdNode
 
 wait
 
 # clean up after finish.
-find /scratch/local/ -user $user -exec rm -rf {} \\; 
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_postrun
 
 EOM
     return $sbatch;
@@ -134,26 +134,19 @@ sub fqf {
 #SBATCH -p ucgd-kp
 #SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/$user/.bashrc
-source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
+source /scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 module load ucgd_modules
 
-# clean all shared memory.
-/uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
-
 # clean up before start
-ibrun -n 7 -r find /scratch/local/ -user $user -exec rm -rf {} \\;
-
-export TMPDIR=/scratch/local
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 $cmdNode
 
 wait
 
 # clean up after finish.
-ibrun -n 7 -r find /scratch/local/ -user $user -exec rm -rf {} \\;
-source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_postrun
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_postrun
 
 EOM
     return $sbatch;
@@ -188,26 +181,19 @@ sub fqf_kingspeak_guest {
 #SBATCH -p kingspeak-guest
 #SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/$user/.bashrc
-source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
+source /scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 module load ucgd_modules
 
-# clean all shared memory.
-/uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
-
 # clean up before start
-ibrun -n 7 -r find /scratch/local/ -user $user -exec rm -rf {} \\;
-
-export TMPDIR=/scratch/local
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 $cmdNode
 
 wait
 
 # clean up after finish.
-ibrun -n 7 -r find /scratch/local/ -user $user -exec rm -rf {} \\;
-source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_postrun
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_postrun
 
 EOM
     return $sbatch;
@@ -241,19 +227,19 @@ sub ember {
 #SBATCH -p yandell-em
 #SBATCH -o $step\_%A.out
 
-source /uufs/chpc.utah.edu/common/home/$user/.bashrc
+source /scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 module load ucgd_modules
 
 # clean up before start
-find /scratch/local/ -user $user -exec rm -rf {} \\; 
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 $cmdNode
 
 wait
 
 # clean up after finish.
-find /scratch/local/ -user $user -exec rm -rf {} \\; 
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_postrun
 
 EOM
     return $sbatch;
@@ -287,26 +273,19 @@ sub fqf_ember {
 #SBATCH -p yandell-em
 #SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/$user/.bashrc
-source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
+source /scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 module load ucgd_modules
 
-# clean all shared memory.
-/uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
-
 # clean up before start
-ibrun -n 7 -r find /scratch/local/ -user $user -exec rm -rf {} \\;
-
-export TMPDIR=/scratch/local
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 $cmdNode
 
 wait
 
 # clean up after finish.
-ibrun -n 7 -r find /scratch/local/ -user $user -exec rm -rf {} \\;
-source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_postrun
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_postrun
 
 EOM
     return $sbatch;
@@ -341,19 +320,19 @@ sub ember_guest {
 #SBATCH -p ember-guest
 #SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/$user/.bashrc
+source /scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 module load ucgd_modules
 
 # clean up before start
-find /scratch/local/ -user $user -exec rm -rf {} \\; 
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 $cmdNode
 
 wait
 
 # clean up after finish.
-find /scratch/local/ -user $user -exec rm -rf {} \\; 
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_postrun
 
 EOM
     return $sbatch;
@@ -388,26 +367,19 @@ sub fqf_ember_guest {
 #SBATCH -p ember-guest
 #SBATCH -o $step\_%A.out 
 
-source /uufs/chpc.utah.edu/common/home/$user/.bashrc
-source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_prerun
+source /scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 module load ucgd_modules
 
-# clean all shared memory.
-/uufs/chpc.utah.edu/common/home/ucgdstor/common/apps/kingspeak.peaks/ucgd/dev/clean_shared.sh
-
 # clean up before start
-ibrun -n 7 -r find /scratch/local/ -user $user -exec rm -rf {} \\;
-
-export TMPDIR=/scratch/local
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_prerun
 
 $cmdNode
 
 wait
 
 # clean up after finish.
-ibrun -n 7 -r find /scratch/local/ -user $user -exec rm -rf {} \\;
-source /uufs/chpc.utah.edu/common/home/yandell-group1/shell/slurm_job_postrun
+/scratch/ucgd/lustre/ugpuser/shell/slurm_job_postrun
 
 EOM
     return $sbatch;

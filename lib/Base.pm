@@ -3,6 +3,7 @@ use Moo;
 use Config::Std;
 use File::Basename;
 use IO::Dir;
+use Cwd 'abs_path';
 use Storable 'dclone';
 use File::Slurper 'read_lines';
 use feature 'say';
@@ -44,7 +45,7 @@ has data => (
     is      => 'ro',
     default => sub {
         my $self = shift;
-        return $self->config->{main}->{data};
+        return $self->config->{main}->{data} || '.';
     },
 );
 
@@ -96,70 +97,118 @@ has pipeline_version => (
 sub _build_data_files {
     my $self = shift;
 
-    my $data_path = $self->data;
+    my $data_path    = $self->data;
+    my $command_file = $self->{commandline}->{file};
 
-    unless ( -d $data_path ) {
+    if ( !-d $data_path ) {
         $self->WARN("Data directory not found or $data_path not a directory");
-        unless ( $self->{commandline}->{file} ) {
-            $self->ERROR("Data path or -f option must be used.");
+        unless ($command_file) {
+            $self->ERROR(
+                "Data directory or file list not found, -f option must be used."
+            );
         }
     }
 
     my @file_path_list;
-    if ($data_path) {
-        unless ( $data_path =~ /\/$/ ) {
-            $data_path =~ s/$/\//;
-        }
+    if ($data_path and ! $command_file) {
+        $data_path =~ s/$/\//;
 
         #update path data
         $self->{data} = $data_path;
-
-        ## check for output directory.
-        ## or add default.
-        if ( !$self->main->{output} ) {
-            $self->main->{output} = $data_path;
-        }
-        elsif ( $self->main->{output} ) {
-            my $out = $self->main->{output};
-            unless ( $out =~ /\/$/ ) {
-                $out =~ s/$/\//;
-                $self->main->{output} = $out;
-            }
-        }
 
         my $DIR = IO::Dir->new($data_path);
         foreach my $file ( $DIR->read ) {
             chomp $file;
             next if ( -d $file );
-            push @file_path_list, "$data_path$file";
+            push @file_path_list, abs_path($file);
         }
         $DIR->close;
     }
 
     ## file from the command line.
-    if ( $self->{commandline}->{file} ) {
-        @file_path_list = read_lines( $self->{commandline}->{file} );
-
-        if ( !$self->main->{output} ) {
-            my ( $name, $path ) = fileparse( $file_path_list[0] );
-            $self->main->{output} = $path;
-        }
-        elsif ( $self->main->{output} ) {
-            my $out = $self->main->{output};
-            unless ( $out =~ /\/$/ ) {
-                $out =~ s/$/\//;
-                $self->main->{output} = $out;
-            }
-        }
+    if ($command_file) {
+        @file_path_list = read_lines($command_file);
     }
     my @sorted_files = sort @file_path_list;
 
-    if ( !@sorted_files ) {
-        $self->ERROR("data path or -f option not found.");
+    if ( ! @sorted_files ) {
+        $self->ERROR("Data path or -f option not found.");
     }
+    my ( $name, $path ) = fileparse( $sorted_files[0]);
+####    $self->{output_path} = $path;
     $self->{start_files} = \@sorted_files;
     return;
 }
+
+#-----------------------------------------------------------
+
+#sub _build_data_files {
+#    my $self = shift;
+#
+#    my $data_path = $self->data;
+#
+#    unless ( -d $data_path ) {
+#        $self->WARN("Data directory not found or $data_path not a directory");
+#        unless ( $self->{commandline}->{file} ) {
+#            $self->ERROR("Data path or -f option must be used.");
+#        }
+#    }
+#
+#    my @file_path_list;
+#    if ($data_path) {
+#        unless ( $data_path =~ /\/$/ ) {
+#            $data_path =~ s/$/\//;
+#        }
+#
+#        #update path data
+#        $self->{data} = $data_path;
+#
+#        ## check for output directory.
+#        ## or add default.
+#        if ( !$self->main->{output} ) {
+#            $self->main->{output} = $data_path;
+#        }
+#        elsif ( $self->main->{output} ) {
+#            my $out = $self->main->{output};
+#            unless ( $out =~ /\/$/ ) {
+#                $out =~ s/$/\//;
+#                $self->main->{output} = $out;
+#            }
+#        }
+#
+#        my $DIR = IO::Dir->new($data_path);
+#        foreach my $file ( $DIR->read ) {
+#            chomp $file;
+#            next if ( -d $file );
+#            push @file_path_list, "$data_path$file";
+#        }
+#        $DIR->close;
+#    }
+#
+#    ## file from the command line.
+#    if ( $self->{commandline}->{file} ) {
+#        @file_path_list = read_lines( $self->{commandline}->{file} );
+#
+#        if ( !$self->main->{output} ) {
+#            my ( $name, $path ) = fileparse( $file_path_list[0] );
+#            $self->main->{output} = $path;
+#        }
+#        elsif ( $self->main->{output} ) {
+#            my $out = $self->main->{output};
+#            unless ( $out =~ /\/$/ ) {
+#                $out =~ s/$/\//;
+#                $self->main->{output} = $out;
+#            }
+#        }
+#    }
+#    my @sorted_files = sort @file_path_list;
+#
+#    if ( !@sorted_files ) {
+#        $self->ERROR("data path or -f option not found.");
+#    }
+#    $self->{start_files} = \@sorted_files;
+#    return;
+#}
 
 #-----------------------------------------------------------
 

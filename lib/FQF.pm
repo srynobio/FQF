@@ -5,6 +5,7 @@ use File::Basename;
 use Parallel::ForkManager;
 use IO::File;
 use File::Slurper 'read_lines';
+use File::Temp qw/ tempdir /;
 use feature 'say';
 
 extends 'Base';
@@ -37,14 +38,26 @@ has class_config => (
     }
 );
 
-has output => (
-    is      => 'rw',
-    lazy    => 1,
-    default => sub {
-        my $self = shift;
-        return $self->main->{output};
-    },
-);
+#has output => (
+#    is      => 'rw',
+#    lazy    => 1,
+#    default => sub {
+#        my $self       = shift;
+#        my $parent_dir = $self->data;
+#        my $tempdir    = tempdir( DIR => $parent_dir );
+#        return "$tempdir/";
+#    },
+#);
+
+#has output => (
+#    is      => 'rw',
+#    lazy    => 1,
+#    default => sub {
+#        my $self = shift;
+#        return $self->main->{output};
+#    },
+#);
+
 
 has qstat_limit => (
     is      => 'ro',
@@ -64,6 +77,15 @@ has uid => (
 
 ##-----------------------------------------------------------
 ##---------------------- METHODS ----------------------------
+##-----------------------------------------------------------
+
+sub output {
+    my $self       = shift;
+    my $parent_dir = $self->data;
+    my $tempdir    = tempdir( DIR => $parent_dir );
+    return "$tempdir/";
+}
+
 ##-----------------------------------------------------------
 
 sub pipeline {

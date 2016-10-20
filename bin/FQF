@@ -28,8 +28,6 @@ Required options:
 
     --config, -cfg          FQF configuration file.
 
-    --mode, -m              Which step of the pipeline you want to run.  
-
     --step, -s              Which step of the pipeline you want to run.  
                             Current steps implemented: toGVCF, QC, Genotype, WHAM
                             Each step has a corresponding config file located in /data/Config_files
@@ -69,7 +67,7 @@ GetOptions(
     \%fqf_opts,              
     "config|cfg=s",
     "interval_list|il=s",
-    "mode|m=s",
+    "step|s=s",
     "file|f=s",
     "jobs_per_node|jpn=i", 
     "qstat_limit|ql=i",

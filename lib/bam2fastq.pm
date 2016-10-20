@@ -25,12 +25,13 @@ sub bam2fastq {
     my @cmds;
     foreach my $file ( @{$bams} ) {
         chomp $file;
+        my $output = $self->output;
         next unless ( $file =~ /bam$/ );
 
         my $cmd = sprintf(
             "%s/bam2fastq.pl %s %s -c %s %s",
             $config->{bam2fastq}, $file, $opts->{command_string},
-            $opts->{cpu}, $self->output
+            $opts->{cpu}, $output
         );
         push @cmds, $cmd;
     }
@@ -51,20 +52,21 @@ sub nantomics_bam2fastq {
     my @cmds;
     foreach my $bam ( @{$bams} ) {
         chomp $bam;
+        my $output = $self->output;
         next unless ( $bam =~ /bam$/ );
 
-        my $file = $self->file_frags($bam);
-
+        my $file     = $self->file_frags($bam);
         my $filename = $file->{name};
+
         ( my $id, undef ) = split /--/, $filename;
 
-        my $pair1 = $file->{path} . $id . '_1.fastq.gz';
-        my $pair2 = $file->{path} . $id . '_2.fastq.gz';
+        my $pair1 = $output . $id . '_1.fastq.gz';
+        my $pair2 = $output . $id . '_2.fastq.gz';
         $self->file_store($pair1);
         $self->file_store($pair2);
 
-        next if ( $self->file_exist($pair1) );
-        next if ( $self->file_exist($pair2) );
+        ##next if ( $self->file_exist($pair1) );
+        ##next if ( $self->file_exist($pair2) );
         my $cmd = sprintf(
             "%s/bam2fastq.pl %s %s -fq %s -fq2 %s",
             $config->{bam2fastq}, $bam, $opts->{command_string},
@@ -87,7 +89,7 @@ sub uncompress {
     my $fastqs = $self->file_retrieve('fastqc_run');
 
     my $source = $opts->{source};
-    unless ( $source ) {
+    unless ($source) {
         $self->ERROR("uncompress requires source option of bam2fastq or other");
     }
 
@@ -109,8 +111,6 @@ sub uncompress {
                 $output =~ s/$/.fastq/;
             }
             $self->file_store($output);
-
-            next if ( $self->file_exist($output) );
             my $cmd = sprintf( "gzip -d -c %s > %s", $file, $output );
             push @cmds, $cmd;
         }

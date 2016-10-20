@@ -1,0 +1,211 @@
+#!/usr/bin/env perl
+# TrelloTalk
+use strict;
+use warnings;
+use feature 'say';
+use autodie;
+use WWW::Trello::Lite;
+use JSON;
+use Time::localtime;
+use Getopt::Long;
+
+my $usage = '
+
+Synopsis:
+
+    TrelloTalk - UGP/UCGD Trello API wrapper. v1.0.0
+
+
+Description:
+
+    TrelloTalk -project 15-10-05_Nant-Toydemir-DDH -list data_process_active -action get_comments
+
+    Trello API wrapper designed to interact and update the UCGD Trello boards.
+
+Required options:
+
+    -project, -p        The UGP database/UGP-GNomEx Project id.
+
+    -action, -a         Which API call you would like to do.
+
+Additional options:
+
+    -list, -l          Which UCGD Trello list to interact with. [default data_process_active]
+
+    -list_actions, -la  List all available actions to take.
+
+    -list_lists, -ll    List all available UCGD Trello lists to interact with.
+
+    -help, -h           Prints this help message.
+
+';
+
+## Trello list ids.
+my %trello_lists = (
+    data_process_active => '5688314d0577b365ffd6bdf9',
+    test                => '57d1f043a512a4b16d183275',
+);
+
+my %talk_opts;
+GetOptions( \%talk_opts, "project|p=s", "action|a=s", "list|l=s",
+    "list_lists|ll", "list_actions|la", "help|h", );
+die $usage if $talk_opts{help};
+
+## list boards
+if ( $talk_opts{list_lists} ) {
+    list_current_lists();
+    exit(0);
+}
+
+## list actios.
+if ( $talk_opts{list_actions} ) {
+    list_current_actions();
+    exit(0);
+}
+
+## check for required.
+unless ( $talk_opts{project} and $talk_opts{action} ) {
+    say $usage;
+    say "Required options not met.";
+    exit(1);
+}
+
+## create new trello api connect.
+my $trello = WWW::Trello::Lite->new(
+    key   => '058fffb6db2cac19121daea62134917b',
+    token => '4c38469f76b7c0553769bcb069970c33c0b809f4c5af59f3a1819f6d00518119',
+);
+
+## current time
+my $current_time = ctime();
+
+## set default
+my $list;
+if ( $talk_opts{list} ) {
+    $list = $trello_lists{ $talk_opts{list} };
+}
+else { $list = $trello_lists{data_process_active} }
+
+## allways get card of requred project.
+my $rh = get_card_hash( $list, $talk_opts{project} );
+if (! $rh) {
+    say "Your project and list pair return no result.";
+    exit(1);
+}
+
+## which action to take.
+get_comments()      if ( $talk_opts{action} eq 'get_comments' );
+pipeline_finished() if ( $talk_opts{action} eq 'pipeline_finished' );
+
+## *complete is reserved for adding steps to the pipeline.
+if ( $talk_opts{action} =~ /complete/ ) {
+    step_update_card($talk_opts{action});
+}
+
+## ---------------------------------------- ##
+
+sub get_comments {
+
+    my $id = $rh->{id};
+    my $comments =
+    $trello->get( "cards/$id/actions", { filter => 'commentCard' } );
+    my $comment_json = decode_json $comments->response->decoded_content;
+
+    foreach my $reply ( @{$comment_json} ) {
+        my $creator = $reply->{memberCreator}->{fullName};
+        my $date    = $reply->{date};
+        my $text    = $reply->{data}->{text};
+
+        say "-----------------------------------------\n";
+        say "Comment was created by: $creator on $date";
+        say $text, "\n";
+    }
+}
+
+## ---------------------------------------- ##
+
+sub get_card_hash {
+    my ( $board_id, $project ) = @_;
+
+    my $cards =
+    $trello->get( "boards/$board_id/cards", { checklists => 'all' } );
+    die "API Responce error" if ( !$cards->response->is_success );
+    my $card_json = decode_json $cards->response->decoded_content;
+
+    foreach my $card ( @{$card_json} ) {
+        next if ( $card->{name} ne $project );
+        return $card;
+    }
+}
+
+## ---------------------------------------- ##
+
+sub pipeline_finished {
+
+    my $checklistItem = $rh->{checklists}[0]->{checkItems};
+    my $card_id       = $rh->{id};
+
+    foreach my $item ( @{$checklistItem} ) {
+        next if ( $item->{name} !~ /FastQForward/ );
+        my $idCheckItem = $item->{id};
+
+        my $put = $trello->put(
+            "cards/$card_id/checkItem/$idCheckItem",
+            {
+                state       => 'complete',
+                idCheckItem => $idCheckItem
+            }
+        );
+    }
+}
+
+## ---------------------------------------- ##
+
+sub step_update_card {
+    my $step    = shift;
+    my $card_id = $rh->{id};
+
+    $step =~ s|\_complete||;
+
+    $trello->post( "cards/$card_id/actions/comments",
+        { text => "[$current_time] $step generation completed." } );
+}
+
+## ---------------------------------------- ##
+
+sub list_current_lists {
+
+    say "-----------------------------------";
+    say "------- current lists ------------";
+    say "-----------------------------------\n";
+    foreach my $list ( keys %trello_lists ) {
+        next if ( $list eq 'test' );
+        if ( $list eq 'data_process_active' ) {
+            say "$list [default]";
+            next;
+        }
+        say $list;
+    }
+    say "\n-----------------------------------";
+}
+
+## ---------------------------------------- ##
+
+sub list_current_actions {
+
+    say "-----------------------------------";
+    say "------- current actions -----------";
+    say "-----------------------------------\n";
+    say "get_comments";
+    say "pipeline_finished";
+    say "bams_complete";
+    say "gvcf_complete";
+    say "qc_complete";
+    say "vcf_complete";
+    say "wham_complete";
+    say "-----------------------------------\n";
+
+}
+
+## ---------------------------------------- ##
+

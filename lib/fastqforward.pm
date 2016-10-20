@@ -75,6 +75,7 @@ sub fastq2bam {
 
         my $fileref = $id_list{$people};
         my @s_files = sort @$fileref;
+        my $output = $self->output;
 
         if ( !$opts->{type} ) {
             $self->ERROR("config fastqforward option for type not given");
@@ -94,7 +95,8 @@ sub fastq2bam {
 
             ## FQF will make these output files for you.
             ## created here to add to object.
-            my $path     = $config->{output} . $tags;
+            ###my $path     = $config->{output} . $tags;
+            my $path     = $output . $tags;
             my $path_bam = $path . ".bam";
 
             # store the output files.
@@ -136,7 +138,8 @@ sub fastq2bam {
 
             ## FQF will make these output files for you.
             ## created here to add to object.
-            my $path     = $config->{output} . $tags;
+            my $path     = $output . $tags;
+            ####my $path     = $config->{output} . $tags;
             my $path_bam = $path . ".bam";
 
             # store the output files.
@@ -181,7 +184,8 @@ sub fastq2bam {
 
                 ## FQF will make these output files for you.
                 ## created here to add to object.
-                my $bam = $config->{output} . $tags;
+                my $bam = $output . $tags;
+                ####my $bam = $config->{output} . $tags;
                 $path_bam = $bam . ".bam";
 
                 my $multi_format =
@@ -220,15 +224,18 @@ sub bam2gvcf {
     foreach my $bam ( @{$files} ) {
         chomp $bam;
         next if ( !$bam =~ /bam$/ );
+        my $output = $self->output;
 
-        ( my $gvcf = $bam ) =~ s/\.bam//;
+        my $f_parts = $self->file_frags($bam);
+        my $gvcf    = $f_parts->{name};
+        $gvcf =~ s/bam/g.vcf/;
 
         ## FQF will make these output files for you.
         ## created here to add to object.
-        my $path_gvcf = $gvcf . ".g.vcf";
+        my $path_gvcf = $output . $gvcf;
         $self->file_store($path_gvcf);
 
-        next if ( $self->file_exist($path_gvcf) );
+        ###next if ( $self->file_exist($path_gvcf) );
         my $cmd = sprintf(
             "ibrun FastQforward.pl bam2gvcf -ref %s -i %s -o %s"
               . " -include %s -known_snps %s -hyperthread",
