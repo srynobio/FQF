@@ -25,8 +25,10 @@ sub bam2fastq {
     my @cmds;
     foreach my $file ( @{$bams} ) {
         chomp $file;
-        my $output = $self->output;
         next unless ( $file =~ /bam$/ );
+        chomp $file;
+
+        my $output = $self->output;
 
         my $cmd = sprintf(
             "%s/bam2fastq.pl %s %s -c %s %s",
@@ -52,8 +54,8 @@ sub nantomics_bam2fastq {
     my @cmds;
     foreach my $bam ( @{$bams} ) {
         chomp $bam;
-        my $output = $self->output;
         next unless ( $bam =~ /bam$/ );
+        my $output = $self->output;
 
         my $file     = $self->file_frags($bam);
         my $filename = $file->{name};
@@ -65,8 +67,6 @@ sub nantomics_bam2fastq {
         $self->file_store($pair1);
         $self->file_store($pair2);
 
-        ##next if ( $self->file_exist($pair1) );
-        ##next if ( $self->file_exist($pair2) );
         my $cmd = sprintf(
             "%s/bam2fastq.pl %s %s -fq %s -fq2 %s",
             $config->{bam2fastq}, $bam, $opts->{command_string},
@@ -86,34 +86,26 @@ sub uncompress {
 
     my $config = $self->class_config;
     my $opts   = $self->tool_options('uncompress');
-    my $fastqs = $self->file_retrieve('fastqc_run');
 
+    ## get source to collect fq files.
     my $source = $opts->{source};
     unless ($source) {
-        $self->ERROR("uncompress requires source option of bam2fastq or other");
+        $self->ERROR("uncompress requires source option.");
     }
 
+    my $fastqs = $self->file_retrieve($source);
+
     my @cmds;
-    if ( $source eq 'bam2fastq' ) {
-        foreach my $file ( @{$fastqs} ) {
-            chomp $file;
-            next unless ( $file =~ /gz$/ );
-            my $cmd = sprintf( "pbgzip -d -p 24 %s", $file );
-            push @cmds, $cmd;
+    foreach my $file ( @{$fastqs} ) {
+        chomp $file;
+        next unless ( $file =~ /(fastq.gz|fq.gz)/ );
+        ( my $output = $file ) =~ s/\.gz//;
+        if ( $output !~ /fastq/ ) {
+            $output =~ s/$/.fastq/;
         }
-    }
-    elsif ( $source eq 'other' ) {
-        foreach my $file ( @{$fastqs} ) {
-            chomp $file;
-            next unless ( $file =~ /gz$/ );
-            ( my $output = $file ) =~ s/\.gz//;
-            if ( $output !~ /fastq/ ) {
-                $output =~ s/$/.fastq/;
-            }
-            $self->file_store($output);
-            my $cmd = sprintf( "gzip -d -c %s > %s", $file, $output );
-            push @cmds, $cmd;
-        }
+        $self->file_store($output);
+        my $cmd = sprintf( "gzip -d -c %s > %s", $file, $output );
+        push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
 }

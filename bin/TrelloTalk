@@ -95,6 +95,7 @@ if (! $rh) {
 
 ## which action to take.
 get_comments()      if ( $talk_opts{action} eq 'get_comments' );
+pipeline_start()    if ( $talk_opts{action} eq 'pipeline_start');
 pipeline_finished() if ( $talk_opts{action} eq 'pipeline_finished' );
 
 ## *complete is reserved for adding steps to the pipeline.
@@ -136,6 +137,16 @@ sub get_card_hash {
         next if ( $card->{name} ne $project );
         return $card;
     }
+}
+
+## ---------------------------------------- ##
+
+sub pipeline_start {
+    my $step    = shift;
+    my $card_id = $rh->{id};
+
+    $trello->post( "cards/$card_id/actions/comments",
+        { text => "[$current_time] FQF pipeline processing started." } );
 }
 
 ## ---------------------------------------- ##
@@ -197,6 +208,7 @@ sub list_current_actions {
     say "------- current actions -----------";
     say "-----------------------------------\n";
     say "get_comments";
+    say "pipeline_start";
     say "pipeline_finished";
     say "bams_complete";
     say "gvcf_complete";

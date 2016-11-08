@@ -2,6 +2,7 @@ package Base;
 use Moo;
 use Config::Std;
 use File::Basename;
+use File::Find 'finddepth';
 use IO::Dir;
 use Cwd 'abs_path';
 use Storable 'dclone';
@@ -57,15 +58,6 @@ has order => (
     },
 );
 
-has workers => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        my $workers = $self->main->{workers} || '1';
-        return $workers + 1;
-    },
-);
-
 has execute => (
     is      => 'ro',
     default => sub {
@@ -75,7 +67,7 @@ has execute => (
 );
 
 has step => (
-    is => 'ro',
+    is      => 'ro',
     default => sub {
         my $self = shift;
         return $self->commandline->{step};
@@ -87,6 +79,30 @@ has pipeline_version => (
     default => sub {
         my $self = shift;
         return $self->commandline->{pipeline_version};
+    },
+);
+
+has class_config => (
+    is      => 'ro',
+    default => sub {
+        my $self = shift;
+        return $self->{class_config};
+    }
+);
+
+has qstat_limit => (
+    is      => 'ro',
+    default => sub {
+        my $self = shift;
+        return $self->commandline->{qstat_limit} || '50';
+    },
+);
+
+has uid => (
+    is      => 'ro',
+    default => sub {
+        my $self = shift;
+        return $ENV{USER};
     },
 );
 
@@ -110,19 +126,25 @@ sub _build_data_files {
     }
 
     my @file_path_list;
-    if ($data_path and ! $command_file) {
+    if ( $data_path and !$command_file ) {
+        $data_path =~ s/\/$//;
         $data_path =~ s/$/\//;
 
         #update path data
         $self->{data} = $data_path;
 
-        my $DIR = IO::Dir->new($data_path);
-        foreach my $file ( $DIR->read ) {
-            chomp $file;
-            next if ( -d $file );
-            push @file_path_list, abs_path($file);
-        }
-        $DIR->close;
+        finddepth(
+            sub {
+                return if ( $_ eq '.' || $_ eq '..' );
+                if ( -l $File::Find::name ) {
+                    push @file_path_list, $File::Find::name;
+                }
+                else {
+                    push @file_path_list, abs_path($File::Find::name);
+                }
+            },
+            $self->{data}
+        );
     }
 
     ## file from the command line.
@@ -131,84 +153,13 @@ sub _build_data_files {
     }
     my @sorted_files = sort @file_path_list;
 
-    if ( ! @sorted_files ) {
+    if ( !@sorted_files ) {
         $self->ERROR("Data path or -f option not found.");
     }
-    my ( $name, $path ) = fileparse( $sorted_files[0]);
-####    $self->{output_path} = $path;
+    my ( $name, $path ) = fileparse( $sorted_files[0] );
     $self->{start_files} = \@sorted_files;
     return;
 }
-
-#-----------------------------------------------------------
-
-#sub _build_data_files {
-#    my $self = shift;
-#
-#    my $data_path = $self->data;
-#
-#    unless ( -d $data_path ) {
-#        $self->WARN("Data directory not found or $data_path not a directory");
-#        unless ( $self->{commandline}->{file} ) {
-#            $self->ERROR("Data path or -f option must be used.");
-#        }
-#    }
-#
-#    my @file_path_list;
-#    if ($data_path) {
-#        unless ( $data_path =~ /\/$/ ) {
-#            $data_path =~ s/$/\//;
-#        }
-#
-#        #update path data
-#        $self->{data} = $data_path;
-#
-#        ## check for output directory.
-#        ## or add default.
-#        if ( !$self->main->{output} ) {
-#            $self->main->{output} = $data_path;
-#        }
-#        elsif ( $self->main->{output} ) {
-#            my $out = $self->main->{output};
-#            unless ( $out =~ /\/$/ ) {
-#                $out =~ s/$/\//;
-#                $self->main->{output} = $out;
-#            }
-#        }
-#
-#        my $DIR = IO::Dir->new($data_path);
-#        foreach my $file ( $DIR->read ) {
-#            chomp $file;
-#            next if ( -d $file );
-#            push @file_path_list, "$data_path$file";
-#        }
-#        $DIR->close;
-#    }
-#
-#    ## file from the command line.
-#    if ( $self->{commandline}->{file} ) {
-#        @file_path_list = read_lines( $self->{commandline}->{file} );
-#
-#        if ( !$self->main->{output} ) {
-#            my ( $name, $path ) = fileparse( $file_path_list[0] );
-#            $self->main->{output} = $path;
-#        }
-#        elsif ( $self->main->{output} ) {
-#            my $out = $self->main->{output};
-#            unless ( $out =~ /\/$/ ) {
-#                $out =~ s/$/\//;
-#                $self->main->{output} = $out;
-#            }
-#        }
-#    }
-#    my @sorted_files = sort @file_path_list;
-#
-#    if ( !@sorted_files ) {
-#        $self->ERROR("data path or -f option not found.");
-#    }
-#    $self->{start_files} = \@sorted_files;
-#    return;
-#}
 
 #-----------------------------------------------------------
 
@@ -290,6 +241,34 @@ sub file_exist {
 
 #-----------------------------------------------------------
 
+sub unneeded_temp {
+    my $temp_dir = shift;
+    unlink $temp_dir;
+}
+
+#-----------------------------------------------------------
+
+sub remove_empty_dirs {
+    my ( $self, $dir ) = @_;
+    my $path = $dir //= $self->{data};
+
+    opendir( my $DIR, $path ) or $self->ERROR("Could not open directory $path");
+
+    my $file_count;
+    foreach my $file ( readdir $DIR ) {
+        next if ( $file eq '.' || $file eq '..' );
+        $file_count++;
+        if ( -d $file ) {
+            $self->remove_empty_dirs( abs_path($file) );
+        }
+    }
+    if ( !$file_count ) {
+        rmdir $path;
+    }
+}
+
+#-----------------------------------------------------------
+
 sub _make_store {
     my ( $self, $class ) = @_;
     my $list = $self->{commandline}->{file};
@@ -335,10 +314,9 @@ sub LOG {
 
     my @time = split /\s+/, $self->timestamp;
     my $log_time = "$time[1]_$time[2]_$time[4]";
-    my $default_log =
-      'FQF_Pipeline.GVCF.' . $self->pipeline_version . "_$log_time-log.txt";
 
-    my $log_file = $self->main->{log} || $default_log;
+    my $log_file =
+      'FQF_Pipeline.GVCF.' . $self->pipeline_version . "_$log_time-log.txt";
     $self->{log_file} = $log_file;
     open( my $LOG, '>>', $log_file );
 

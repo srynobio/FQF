@@ -27,8 +27,7 @@ sub featureCounts_run {
         my $output = "$indiv.fcounts";
 
         my $cmd = sprintf( "featureCounts -a %s -g gene_name -o %s -t exon %s",
-            $opts->{gtf_file}, $output, $file 
-        );
+            $opts->{gtf_file}, $output, $file );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );

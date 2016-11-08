@@ -19,8 +19,8 @@ has 'intervals' => (
 ##-----------------------------------------------------------
 
 sub _build_intervals {
-    my $self = shift;
-    my $itv  = $self->commandline->{interval_list};
+    my $self   = shift;
+    my $itv    = $self->config->{main}->{region};
     my $output = $self->output;
 
     # create, print and store regions.
@@ -41,7 +41,7 @@ sub _build_intervals {
     my @inv_file;
     foreach my $chr ( keys %regions ) {
         my $output_reg = $output . "chr$chr" . "_region_file.list";
-        #my $output_reg = $self->output . "chr$chr" . "_region_file.list";
+        ##  #my $output_reg = $self->output . "chr$chr" . "_region_file.list";
 
         if ( -e $output_reg ) {
             push @inv_file, $output_reg;
@@ -84,7 +84,6 @@ sub SelectVariants {
             my $filename = "$chr\_" . $f_parts->{name};
             my $chrdir   = $output . "$chr/";
             make_path($chrdir);
-            ####mkdir $chrdir if (!-d $chrdir);
             my $final_output = $chrdir . $filename;
             $self->file_store($final_output);
 
@@ -112,14 +111,16 @@ sub CombineGVCF {
     my $output = $self->output;
 
     my $gvcf = $self->file_retrieve('SelectVariants');
-    my @iso = grep { /vcf$/ } @{$gvcf};
+    my @iso = grep { /chr(\d{1,2}|MT|X|Y).*\.g.vcf$/ } @{$gvcf};
 
     ## will make chr based groupings.
     my %chr_groups;
     foreach my $c_vcf (@iso) {
         chomp $c_vcf;
-
         my $f_parts = $self->file_frags($c_vcf);
+
+        ## check for wanted files.
+        next if ( $f_parts->{name} =~ /combined/ );
         my ( $chr, $indiv ) = split /_/, $f_parts->{name};
         push @{ $chr_groups{$chr} }, $c_vcf;
     }
@@ -157,8 +158,8 @@ sub GenotypeGVCF {
     my $opts   = $self->tool_options('GenotypeGVCF');
     my $output = $self->output;
 
-    my $files = $self->file_retrieve('CombineGVCF');
-    my @gvcfs = grep { $_ =~ /g.vcf.gz$/ } @{$files};
+    my $files = $self->file_retrieve;
+    my @gvcfs = grep { /chr(\d{1,2}|MT|X|Y).combined.g.vcf.gz$/ } @{$files};
 
     # collect the 1k backgrounds.
     my (@backs);
@@ -191,9 +192,7 @@ sub GenotypeGVCF {
         my @region = grep { $_ =~ /$chrom\_/ } @{$intv};
 
         my $final_output = $output . $chrom . '_genotyped.vcf';
-        ###my $output = $self->output . $chrom . '_genotyped.vcf';
         $self->file_store($final_output);
-        ####$self->file_store($output);
 
         my $cmd;
         if ($back_variants) {
@@ -206,7 +205,7 @@ sub GenotypeGVCF {
                 $config->{gatk}, $config->{fasta},    $opts->{num_threads},
                 $input,          $back_variants,      shift @region,
                 $final_output
-                ###$output
+                  ###$output
             );
         }
         else {
@@ -218,7 +217,7 @@ sub GenotypeGVCF {
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
                 $config->{gatk}, $config->{fasta},    $opts->{num_threads},
                 $input,          shift @region,       $final_output
-                ####$input,          shift @region,       $output
+                  ####$input,          shift @region,       $output
             );
         }
         push @cmds, $cmd;
@@ -233,7 +232,7 @@ sub CatVariants_Genotype {
     $self->pull;
 
     my $config = $self->class_config;
-    my $vcf    = $self->file_retrieve('GenotypeGVCF');
+    my $vcf    = $self->file_retrieve;
     my @iso    = grep { /genotyped.vcf$/ } @{$vcf};
     my $output = $self->output;
 
@@ -261,15 +260,12 @@ sub CatVariants_Genotype {
     $variant =~ s/^/-V /;
 
     my $final_output = $output . $config->{fqf_id} . '_cat_genotyped.vcf';
-    ###my $output = $self->output . $config->{fqf_id} . '_cat_genotyped.vcf';
     $self->file_store($final_output);
-    ###$self->file_store($output);
 
     my $cmd = sprintf(
         "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
           . "--assumeSorted  %s -out %s",
         $config->{gatk}, $config->{fasta}, $variant, $final_output );
-    ####$config->{gatk}, $config->{fasta}, $variant, $output );
     push @cmds, $cmd;
     $self->bundle( \@cmds );
 }
@@ -280,17 +276,17 @@ sub VariantRecalibrator_SNP {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->class_config;
-    my $opts   = $self->tool_options('VariantRecalibrator_SNP');
+    my $config  = $self->class_config;
+    my $opts    = $self->tool_options('VariantRecalibrator_SNP');
+    my $files   = $self->file_retrieve('CatVariants_Genotype');
+    my @genotpd = grep { /_cat_genotyped.vcf$/ } @{$files};
+    my $output  = $self->output;
 
-    my $genotpd = $self->file_retrieve('CatVariants_Genotype');
-
-    my $recalFile =
-      '-recalFile ' . $self->output . $config->{fqf_id} . '_snp_recal';
+    my $recalFile = '-recalFile ' . $output . $config->{fqf_id} . '_snp_recal';
     my $tranchFile =
-      '-tranchesFile ' . $self->output . $config->{fqf_id} . '_snp_tranches';
+      '-tranchesFile ' . $output . $config->{fqf_id} . '_snp_tranches';
     my $rscriptFile =
-      '-rscriptFile ' . $self->output . $config->{fqf_id} . '_snp_plots.R';
+      '-rscriptFile ' . $output . $config->{fqf_id} . '_snp_plots.R';
 
     $self->file_store($recalFile);
     $self->file_store($tranchFile);
@@ -308,7 +304,7 @@ sub VariantRecalibrator_SNP {
         $config->{tmp},   $config->{gatk},
         $config->{fasta}, $opts->{minNumBadVariants},
         $opts->{num_threads}, join( ' -resource:', @$resource ),
-        join( ' -an ', @$anno ), @$genotpd,
+        join( ' -an ', @$anno ), $genotpd[0],
         $recalFile, $tranchFile,
         $rscriptFile
     );
@@ -322,17 +318,18 @@ sub VariantRecalibrator_INDEL {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->class_config;
-    my $opts   = $self->tool_options('VariantRecalibrator_INDEL');
-
-    my $genotpd = $self->file_retrieve('CatVariants_Genotype');
+    my $config  = $self->class_config;
+    my $opts    = $self->tool_options('VariantRecalibrator_INDEL');
+    my $files   = $self->file_retrieve('CatVariants_Genotype');
+    my @genotpd = grep { /_cat_genotyped.vcf$/ } @{$files};
+    my $output  = $self->output;
 
     my $recalFile =
-      '-recalFile ' . $self->output . $config->{fqf_id} . '_indel_recal';
+      '-recalFile ' . $output . $config->{fqf_id} . '_indel_recal';
     my $tranchFile =
-      '-tranchesFile ' . $self->output . $config->{fqf_id} . '_indel_tranches';
+      '-tranchesFile ' . $output . $config->{fqf_id} . '_indel_tranches';
     my $rscriptFile =
-      '-rscriptFile ' . $self->output . $config->{fqf_id} . '_indel_plots.R';
+      '-rscriptFile ' . $output . $config->{fqf_id} . '_indel_plots.R';
 
     $self->file_store($recalFile);
     $self->file_store($tranchFile);
@@ -351,7 +348,7 @@ sub VariantRecalibrator_INDEL {
         $config->{tmp},   $config->{gatk},
         $config->{fasta}, $opts->{minNumBadVariants},
         $opts->{num_threads}, join( ' -resource:', @$resource ),
-        join( ' -an ', @$anno ), @$genotpd,
+        join( ' -an ', @$anno ), $genotpd[0],
         $recalFile, $tranchFile,
         $rscriptFile
     );
@@ -441,7 +438,8 @@ sub CombineVariants {
     my @app_snp = map { "--variant $_ " } @{$snp_files};
     my @app_ind = map { "--variant $_ " } @{$indel_files};
 
-    my $output = $config->{output} . $config->{fqf_id} . ".vcf";
+    my $output = $config->{fqf_id} . ".vcf";
+    ############my $output = $config->{output} . $config->{fqf_id} . ".vcf";
     $self->file_store($output);
 
     my @cmds;

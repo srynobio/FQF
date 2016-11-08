@@ -1,0 +1,145 @@
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use v5.10;
+use FindBin;
+use File::Find;
+use Cwd;
+use lib "$FindBin::Bin/../lib";
+use FQF;
+use Getopt::Long;
+use IO::Dir;
+
+my $usage = << "EOU";
+
+Synopsis:
+
+    FQF version 1.2.2
+
+    FQF -cfg FQF.toGVCF.cfg -step toGVCF -project 15-03-13_WashU-Tristani-Heart_Disease -ql 50 --run 
+    
+Description:
+
+    FQF is a NGS pipeline created for the 
+    Utah Genome Project (UGP) and The USTAR Center for Genetic Discovery (UCGD)
+
+    Additional Protocol documentation here: http://weatherby.genetics.utah.edu/UGP/wiki/index.php/UGP_Variant_Protocol
+
+Required options:
+
+    --config, -cfg          FQF configuration file.
+
+    --step, -s              Which step of the pipeline you want to run.  
+                            Current steps implemented: toGVCF, QC, Genotype, WHAM
+                            Each step has a corresponding config file located in /data/Config_files
+
+    --project, -p           UGP-GNomEx project id.
+
+Additional options:
+
+    --file, -f              List of files (including path) from which to start FQF.
+                            File must match previous step FQF would have ran.
+
+    --run, -r               Will run the FQF pipeline.
+                            When this option is off a display of commands will be piped to STDOUT.
+
+    --qstat_limit, -ql      Limit to the number of qstat jobs to launch at one time. [DEFAULT 10]
+
+
+Helper Options:
+
+    --clean, -c             Will clean up all log, data, slurm, index and report files.
+
+    --error_check, -ec      Run quick check of log files for run errors.
+
+    --fqf_check, -fc        Check fqf2bam and bam2gvcf for completed files.
+    
+    --version, -v           Print FQF version.
+
+    --help, -h              Print this usage statement.
+
+EOU
+
+my %fqf_opts = ();
+GetOptions(
+    \%fqf_opts,              
+    "config|cfg=s",
+    "step|s=s",
+    "project|p",
+    "file|f=s",
+    "qstat_limit|ql=i",
+    "fqf_check|fc",
+    "error_check|ec",      
+    "run|r",               
+    "version|v",
+    "clean|c",             
+    "help|h",              
+);
+die $usage if $fqf_opts{help};
+
+## add version
+$fqf_opts{pipeline_version} = '1.2.2';
+
+## version check
+if ( $fqf_opts{version} ) {
+    say "FQF version: ", $fqf_opts{pipeline_version};
+    exit(0);
+}
+
+## remove unneeded data.
+if ( $fqf_opts{clean} and $fqf_opts{step} ) {
+
+    my %file_types = (
+        SelectVariants => qr/chr(\d{1,2}|MT|X|Y).*\.g.vcf/,
+        Genotype => 'genotyped',
+        Combine => 'combined',
+    );
+
+    my $dir = getcwd;
+    my $step = $file_types{$fqf_opts{step}};
+
+    finddepth(
+        sub {
+            return if ( $_ eq '.' || $_ eq '..' );
+            if ( $File::Find::name =~ $step ) {
+                unlink $_;
+                say "found $_";
+            }
+        },
+        $dir
+    );
+}
+
+# set up commandline defaults.
+if ( $fqf_opts{clean} ) {
+    `rm -rf core.* *.log* CMD_stack.store *sbatch *.out *err launch.index cmd_tmp slurm_tmp *theVoid`;
+    exit(0);
+}
+
+## error checks.
+if ( $fqf_opts{error_check} ) {
+    my $DIR = IO::Dir->new('.');
+
+    foreach my $file ( $DIR->read) {
+        chomp $file;
+        next if ( -d $file);
+        next if ( $file !~ /(log|err)/);
+        system("grep -i error $file"); 
+        system("grep -i failed $file"); 
+    }
+    exit(0);
+}
+
+## check before moving on.
+die "Required options not met\n$usage" unless ( $fqf_opts{config} and $fqf_opts{step} and $fqf_opts{project});
+
+## get project data from ugp_db
+###ugp_db -from Projects -where 'Project = "15-03-13_WashU-Tristani-Heart_Disease"'
+
+
+
+
+## build object
+my $fqf = FQF->new( commandline => \%fqf_opts, );
+$fqf->pipeline;
+

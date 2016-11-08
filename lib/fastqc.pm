@@ -26,7 +26,6 @@ sub fastqc_run {
 
         my $cmd = sprintf( "%s/fastqc --threads %s -o %s -f fastq %s",
             $config->{fastqc}, $opts->{threads}, $output, $file );
-        #$config->{fastqc}, $opts->{threads}, $config->{output}, $file );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );

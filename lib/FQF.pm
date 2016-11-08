@@ -3,7 +3,9 @@ use Moo;
 use Config::Std;
 use File::Basename;
 use Parallel::ForkManager;
-use IO::File;
+#use IO::File;
+#use IO::Dir;
+use Cwd;
 use File::Slurper 'read_lines';
 use File::Temp qw/ tempdir /;
 use feature 'say';
@@ -12,7 +14,6 @@ extends 'Base';
 
 with qw|
   bam2fastq
-  bwa
   fastqforward
   fastqc
   samtools
@@ -20,7 +21,6 @@ with qw|
   igv
   tabix
   wham
-  clusterUtils
   featureCounts
   snpeff
   multiqc
@@ -30,51 +30,6 @@ with qw|
 ##---------------------- ATTRIBUTES -------------------------
 ##-----------------------------------------------------------
 
-has class_config => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $self->{class_config};
-    }
-);
-
-#has output => (
-#    is      => 'rw',
-#    lazy    => 1,
-#    default => sub {
-#        my $self       = shift;
-#        my $parent_dir = $self->data;
-#        my $tempdir    = tempdir( DIR => $parent_dir );
-#        return "$tempdir/";
-#    },
-#);
-
-#has output => (
-#    is      => 'rw',
-#    lazy    => 1,
-#    default => sub {
-#        my $self = shift;
-#        return $self->main->{output};
-#    },
-#);
-
-
-has qstat_limit => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $self->commandline->{qstat_limit} || '10';
-    },
-);
-
-has uid => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $ENV{USER};
-    },
-);
-
 ##-----------------------------------------------------------
 ##---------------------- METHODS ----------------------------
 ##-----------------------------------------------------------
@@ -83,6 +38,7 @@ sub output {
     my $self       = shift;
     my $parent_dir = $self->data;
     my $tempdir    = tempdir( DIR => $parent_dir );
+    push @{ $self->{temp_dir_stack} }, $tempdir;
     return "$tempdir/";
 }
 
@@ -93,6 +49,15 @@ sub pipeline {
 
     my %progress_list;
     my $steps = $self->order;
+
+    ## make reference if single step.
+    my @single;
+    if ( !ref $steps ) {
+        push @single, $steps;
+    }
+    if (@single) {
+        $steps = \@single;
+    }
 
     if ( $self->execute ) {
         $self->LOG('config');
@@ -112,6 +77,12 @@ sub pipeline {
     foreach my $sub ( @{$steps} ) {
         chomp $sub;
 
+        ## next if $sub commands already done.
+        if ( $progress_list{$sub} and $progress_list{$sub} eq 'complete' ) {
+            next;
+        }
+
+        $self->remove_empty_dirs;
         eval { $self->$sub };
         if ($@) {
             $self->ERROR("Error during call to $sub: $@");
@@ -125,34 +96,31 @@ sub pipeline {
             next;
         }
 
-        ## next if $sub commands already done.
-        if ( $progress_list{$sub} and $progress_list{$sub} eq 'complete' ) {
-            delete $self->{bundle};
-            next;
-        }
-
         ## print stack for review
         if ( !$self->execute ) {
             my $stack = $self->{bundle};
 
-            open( my $OUT, '>', "$sub.cmd.txt" );
-
-            map { say $OUT $_ } @{ $stack->{$sub} }
-              if ( $self->commandline->{command_dump} );
-            map { say "Review $_" } @{ $stack->{$sub} };
-
+            foreach my $cmd ( @{ $stack->{$sub} } ) {
+                say "REVIEW: $cmd";
+            }
             delete $stack->{$sub};
-            close $OUT;
+            $self->remove_temp_dirs;
             next;
         }
         else {
-            if ( scalar @{ $self->{bundle}->{$sub} } < 1 ) {
-                delete $self->{bundle}->{$sub};
-                next;
+            my $stack = $self->{bundle};
+            my $exe   = "$sub.FQFexecute.txt";
+
+            open( my $OUT, '>', $exe );
+            foreach my $cmd ( @{ $stack->{$sub} } ) {
+                say $OUT $cmd;
             }
-            $self->_cluster;
+            close $OUT;
+            $self->deploy($exe);
+            delete $stack->{$sub};
         }
     }
+    $self->remove_empty_dirs;
     return;
 }
 
@@ -235,266 +203,83 @@ sub file_frags {
 
 ##-----------------------------------------------------------
 
-sub node_setup {
-    my ( $self, $step ) = @_;
+sub clean_up_salvo {
+    my $self = shift;
+    my $cwd  = getcwd();
 
-    my $opts = $self->{config}->{$step};
-    my $node = $opts->{node} || 'ucgd';
+    opendir( my $DIR, $cwd ) or $self->ERROR("could not open directory $cwd");
 
-    ## jpn need higher values for default.
-    my $jpn;
-    if ( $step =~ /fastq2bam|bam2gvcf/ ) {
-        ( $opts->{jpn} )
-          ? ( $jpn = $opts->{jpn} )
-          : ( $jpn = '4' );
-    }
-    else {
-        $jpn = $opts->{jpn} || '1';
-    }
-    return $jpn, $node;
-}
-
-##-----------------------------------------------------------
-
-sub _cluster {
-    my ( $self, $stack ) = @_;
-
-    # command information.
-    my @sub      = keys %{ $self->{bundle} };
-    my @stack    = values %{ $self->{bundle} };
-    my @commands = map { @$_ } @stack;
-
-    return if ( !@commands );
-
-    # jobs per node per step and options
-    my $jpn = $self->config->{ $sub[0] }->{jpn} || '1';
-    my $opts = $self->tool_options( $sub[0] );
-
-    if ( !$opts->{node} ) {
-        $self->WARN("Node not selected for $sub[0] task defaulting to ucgd");
-    }
-    my $node = $opts->{node} || 'ucgd';
-
-    my $id;
-    my @slurm_stack;
-    $self->LOG( 'start', $sub[0] );
-    while (@commands) {
-        my $slurm_file = $sub[0] . "_" . ++$id . ".sbatch";
-
-        my $RUN = IO::File->new( $slurm_file, 'w' )
-          or $self->ERROR('Can not create needed slurm file [cluster]');
-
-        # don't go over total file amount.
-        if ( $jpn > scalar @commands ) {
-            $jpn = scalar @commands;
-        }
-
-        # get the right collection of files
-        my @cmd_chunk = splice( @commands, 0, $jpn );
-
-        # write out the commands not copies.
-        map { $self->LOG( 'cmd', $_ ) } @cmd_chunk;
-
-        # call to create sbatch script.
-        my $batch = $self->$node( \@cmd_chunk, $sub[0] );
-
-        print $RUN $batch;
-        push @slurm_stack, $slurm_file;
-        $RUN->close;
-    }
-
-    open( my $FH, '>>', 'launch.index' );
-    my $running = 0;
-    foreach my $launch (@slurm_stack) {
-        if ( $running >= $self->qstat_limit ) {
-            my $status = $self->_jobs_status($node);
-            if ( $status eq 'add' ) {
-                $running--;
-                redo;
-            }
-            elsif ( $status eq 'wait' ) {
-                sleep(10);
-                redo;
-            }
-        }
-        else {
-            print $FH "$launch\t";
-            system "sbatch $launch >> launch.index";
-            $running++;
-            next;
+    foreach my $file ( readdir $DIR ) {
+        if ( $file =~ /(sbatch|complete$)/ ) {
+            unlink $file;
         }
     }
-
-    ## give smaller stacks time to start.
-    sleep(30);
-
-    # check the status of current sbatch jobs
-    # before moving on.
-    $self->_wait_all_jobs( $node, $sub[0] );
-    $self->_error_check;
-    unlink('launch.index');
-
-    delete $self->{bundle};
-    $self->LOG( 'finish',   $sub[0] );
-    $self->LOG( 'progress', $sub[0] );
     return;
 }
 
 ##-----------------------------------------------------------
 
-sub _jobs_status {
-    my ( $self, $node ) = @_;
+sub deploy {
+    my ( $self, $exeFile ) = @_;
 
-    my $partition = $self->_which_node($node);
-    my $id        = $self->uid;
-    my $state     = `squeue -A $partition -u $id -h | wc -l`;
+    my @sub  = keys %{ $self->{bundle} };
+    my $jpn  = $self->config->{ $sub[0] }->{jps} || '1';
+    my $opts = $self->tool_options( $sub[0] );
 
-    if ( $state >= $self->qstat_limit ) {
-        return 'wait';
+    ## clean up old sbatch scripts
+    $self->clean_up_salvo;
+
+    ## get runtime or set default
+    if ( !$opts->{runtime} ) {
+        $self->WARN("runtime not given setting default to 10:00:00.");
+    }
+    my $runtime = $opts->{runtime} || '10:00:00';
+
+    ## set min memory.
+    my $min_memory;
+    if ( $opts->{mm} ) {
+        $min_memory = $opts->{mm} || '20';
+    }
+
+    ## set mode to dedicated or idle.
+    if ( !$opts->{node} ) {
+        $self->WARN(
+            "Node not selected for $sub[0] defaulting to ucgd dedicated.");
+    }
+    my $node = $opts->{node} || 'dedicated';
+
+    ## get jobs per node.
+    if ( !$opts->{jps} ) {
+        $self->WARN("Setting jps to default of 1.");
+    }
+    my $jps = $opts->{jps} || 1;
+
+    ## set node per sbatch job
+    if ( !$opts->{nps} ) {
+        $self->WARN("Setting nps to default of 1.");
+    }
+    my $nps = $opts->{nps} || 1;
+
+    ## set dedicated or idle cmd.
+    my $salvoCmd;
+    if ( $node eq 'dedicated' ) {
+        $salvoCmd = sprintf(
+            "/uufs/chpc.utah.edu/common/home/u0413537/MasterVersions/Salvo/Salvo -cf %s -a ucgd-kp -p ucgd-kp -c kingspeak -m dedicated "
+              . "-r %s -ec lonepeak -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
+            $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit, $min_memory );
     }
     else {
-        return 'add';
+        $salvoCmd = sprintf(
+            "/uufs/chpc.utah.edu/common/home/u0413537/MasterVersions/Salvo/Salvo -cf %s -m idle "
+              . "-r %s -ec lonepeak -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
+            $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit, $min_memory );
     }
+
+    my $run = `$salvoCmd`;
+    $self->LOG( 'progress', $sub[0] );
+    return;
 }
 
-##-----------------------------------------------------------
-
-## method used when using preemptable nodes.
-
-sub _relaunch {
-    my $self = shift;
-
-    my @error = `grep -i error *.out`;
-    chomp @error;
-    if ( !@error ) { return }
-
-    my %relaunch;
-    my @error_files;
-    foreach my $cxl (@error) {
-        chomp $cxl;
-
-        if ( $cxl =~ /TIME LIMIT/ ) {
-            say "[WARN] a job was canceled due to time limit";
-            next;
-        }
-
-        next unless ( $cxl =~ /PREEMPTION/ );
-
-        my @ids = split /\s/, $cxl;
-
-        ## collect error files.
-        my ( $sbatch, undef ) = split /:/, $ids[0];
-        push @error_files, $sbatch;
-
-        ## record launch id.
-        $relaunch{ $ids[4] }++;
-    }
-
-    open( my $FH, '>>', 'launch.index' );
-
-    my @indexs = read_lines 'launch.index';
-    foreach my $line (@indexs) {
-        chomp $line;
-        my @parts = split /\s/, $line;
-
-        ## find in lookup and dont re-relaunch.
-        if ( $relaunch{ $parts[-1] } ) {
-            print $FH "$parts[0]\t";
-            system "sbatch $parts[0] >> launch.index";
-            $self->WARN("Relaunching job $parts[0]");
-        }
-    }
-
-    ## remove error files.
-    unlink @error_files;
-}
-
-##-----------------------------------------------------------
-
-sub _wait_all_jobs {
-    my ( $self, $node, $sub ) = @_;
-
-    my $process;
-    do {
-        sleep(60);
-        $self->_relaunch;
-        sleep(60);
-        $process = $self->_process_check( $node, $sub );
-    } while ($process);
-}
-
-##-----------------------------------------------------------
-
-sub _process_check {
-    my ( $self, $node, $sub ) = @_;
-
-    my $partition = $self->_which_node($node);
-    my $id        = $self->uid;
-
-    my @processing = `squeue -A $partition -u $id -h --format=%A`;
-    chomp @processing;
-    if ( !@processing ) { return 0 }
-
-    ## check run specific processing.
-    ## make lookup of what is running.
-    my %running;
-    foreach my $active (@processing) {
-        chomp $active;
-        $active =~ s/\s+//g;
-        $running{$active}++;
-    }
-
-    ## check what was launched.
-    open( my $LAUNCH, '<', 'launch.index' )
-      or $self->ERROR("Can't find needed launch.index file.");
-
-    my $current = 0;
-    foreach my $launched (<$LAUNCH>) {
-        chomp $launched;
-        my @result = split /\s+/, $launched;
-
-        if ( $running{ $result[-1] } ) {
-            $current++;
-        }
-    }
-    ($current) ? ( return 1 ) : ( return 0 );
-}
-
-##-----------------------------------------------------------
-
-sub _which_node {
-    my ( $self, $node ) = @_;
-
-    if ( $node =~ /\bucgd\b/ ) {
-        return 'ucgd-kp';
-    }
-    elsif ( $node =~ /\bfqf\b/ ) {
-        return 'ucgd-kp';
-    }
-    elsif ( $node =~ /(fqf_ember|ember)/ ) {
-        return 'yandell-em';
-    }
-    elsif ( $node =~
-        /(kingspeak_guest|fqf_kingspeak_guest|ember_guest|fqf_ember_guest)/ )
-    {
-        return 'owner-guest';
-    }
-}
-
-##-----------------------------------------------------------
-
-sub _error_check {
-    my $self = shift;
-
-    my @error = `grep -i error *.out`;
-    chomp @error;
-
-    if ( !@error ) { return }
-    else {
-        $self->WARN("Some errors found (possibly non-fatal) plese review.");
-    }
-}
-
-##-----------------------------------------------------------
+###-----------------------------------------------------------
 
 1;

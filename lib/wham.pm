@@ -61,7 +61,7 @@ sub whamg_svtyper {
         my $temp_log = $config->{output} . $file->{parts}[0] . ".log";
 
         my $cmd = sprintf(
-            "whamg -a %s -x %s -f %s -e %s > %s 2> %s && svtyper -B %s -i %s -o %s && rm %s",
+"whamg -a %s -x %s -f %s -e %s > %s 2> %s && svtyper -B %s -i %s -o %s && rm %s",
             $config->{fasta}, $threads,  $bam, $skip_ids,
             $temp_bam,        $temp_log, $bam, $temp_bam,
             $output,          $temp_bam

@@ -32,8 +32,8 @@ Required options:
                             Current steps implemented: toGVCF, QC, Genotype, WHAM
                             Each step has a corresponding config file located in /data/Config_files
 
-    --interval_list, -il    Region list file for GATK genotyping. [Example: 1:10929-11532]
-                            Required if running toGVCF step.
+####    --interval_list, -il    Region list file for GATK genotyping. [Example: 1:10929-11532]
+   ####                         Required if running toGVCF step.
 
 Additional options:
 
@@ -49,10 +49,8 @@ Additional options:
 
     --qstat_limit, -ql      Limit to the number of qstat jobs to launch at one time. [DEFAULT 10]
 
-    --sbatch_time, -st      Option to override sbatch run time from defaults, example: 4:00:00
+##############    --sbatch_time, -st      Option to override sbatch run time from defaults, example: 4:00:00
                             Value will be set for all sbatch scripts.
-
-    --command_dump, -cd     Will print to STDOUT full stack of commands.
 
     --clean, -c             Will clean up all log, data, slurm, index and report files.
 
@@ -66,13 +64,13 @@ my %fqf_opts = ();
 GetOptions(
     \%fqf_opts,              
     "config|cfg=s",
-    "interval_list|il=s",
-    "step|s=s",
+####    "interval_list|il=s",
+#    "step|s=s",
     "file|f=s",
     "jobs_per_node|jpn=i", 
     "qstat_limit|ql=i",
-    "sbatch_time|st=s", 
-    "command_dump|cd",
+#####    "sbatch_time|st=s", 
+##    "command_review|cr",
     "fqf_check|fc",
     "error_check|ec",      
     "run|r",               
@@ -93,7 +91,8 @@ if ( $fqf_opts{version} ) {
 
 # set up commandline defaults.
 if ( $fqf_opts{clean} ) {
-    `rm -rf core.* *.log* CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp *theVoid`;
+    `rm -rf core.* *.log* *err CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp *theVoid`;
+    `Salvo -clean`;
     exit(0);
 }
 
@@ -117,29 +116,26 @@ if ( $fqf_opts{error_check} ) {
 }
 
 ## check before moving on.
-die "Required options not met\n$usage" unless ( $fqf_opts{config} and $fqf_opts{step});
+die "Required options not met\n$usage" unless ( $fqf_opts{config});
+#die "Required options not met\n$usage" unless ( $fqf_opts{config} and $fqf_opts{step});
 
-## check if running toGVCF
-if ( $fqf_opts{step} eq 'toGVCF' ) {
-    die "interval list file needed\n" unless ($fqf_opts{interval_list});
-}
-
+## build object
 my $fqf = FQF->new( commandline => \%fqf_opts, );
 
 REPROCESS:
 $fqf->pipeline;
 
-if ($fqf_opts{step} eq 'toGVCF') {
-    my @bams  = `grep 'BAM  -->' fastq2bam.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
-    my @gvcfs = `grep 'gVCF  -->' bam2gvcf.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
-
-    my @bam_founds  = grep { $_ =~ /not found/ } @bams;
-    my @gvcf_founds = grep { $_ =~ /not found/ } @gvcfs;
-
-    if ( @bam_founds or @gvcf_founds) {
-        system "perl -p -i -e 's/fastq2bam:complete//' PROGRESS";
-        system "perl -p -i -e 's/bam2gvcf:complete//' PROGRESS";
-        goto REPROCESS;
-    }
-}
-
+#if ($fqf_opts{step} eq 'toGVCF') {
+#    my @bams  = `grep 'BAM  -->' fastq2bam.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
+#    my @gvcfs = `grep 'gVCF  -->' bam2gvcf.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
+#
+#    my @bam_founds  = grep { $_ =~ /not found/ } @bams;
+#    my @gvcf_founds = grep { $_ =~ /not found/ } @gvcfs;
+#
+#    if ( @bam_founds or @gvcf_founds) {
+#        system "perl -p -i -e 's/fastq2bam:complete//' PROGRESS";
+#        system "perl -p -i -e 's/bam2gvcf:complete//' PROGRESS";
+#        goto REPROCESS;
+#    }
+#}
+#
