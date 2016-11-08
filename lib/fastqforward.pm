@@ -110,8 +110,7 @@ sub fastq2bam {
 
             $id_count++;
             my $uniq_id = $file1->{parts}[0] . "_" . $id_count;
-            my $r_group =
-                "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
+            my $r_group = "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
 
             my $single_format =
               "-align \'Files=$single;Type=UNPAIRED;RG=$r_group\'";
@@ -158,8 +157,7 @@ sub fastq2bam {
 
             $id_count++;
             my $uniq_id = $file1->{parts}[0] . "_" . $id_count;
-            my $r_group =
-                "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
+            my $r_group = "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
 
             my $pair_format =
               "-align \'Files=$pair1,$pair2;Type=PAIRED;RG=$r_group\'";
@@ -197,8 +195,7 @@ sub fastq2bam {
 
                 $id_count++;
                 my $uniq_id = $file1->{parts}[0] . "_" . $id_count;
-                my $r_group =
-                    "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
+                my $r_group = "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
 
                 ## FQF will make these output files for you.
                 ## created here to add to object.
@@ -241,7 +238,6 @@ sub bam2gvcf {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('bam2gvcf');
     my $files  = $self->file_retrieve;
-    ########################3my $files  = $self->file_retrieve('fastq2bam');
 
     my @cmds;
     foreach my $bam ( @{$files} ) {

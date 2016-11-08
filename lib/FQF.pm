@@ -3,8 +3,6 @@ use Moo;
 use Config::Std;
 use File::Basename;
 use Parallel::ForkManager;
-#use IO::File;
-#use IO::Dir;
 use Cwd;
 use File::Slurper 'read_lines';
 use File::Temp qw/ tempdir /;
@@ -104,7 +102,7 @@ sub pipeline {
                 say "REVIEW: $cmd";
             }
             delete $stack->{$sub};
-            $self->remove_temp_dirs;
+            $self->remove_empty_dirs;
             next;
         }
         else {
@@ -113,6 +111,7 @@ sub pipeline {
 
             open( my $OUT, '>', $exe );
             foreach my $cmd ( @{ $stack->{$sub} } ) {
+                $self->LOG('cmd', $cmd);
                 say $OUT $cmd;
             }
             close $OUT;

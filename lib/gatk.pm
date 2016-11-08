@@ -25,8 +25,7 @@ sub _build_intervals {
 
     # create, print and store regions.
     my $REGION = IO::File->new( $itv, 'r' )
-      or
-      $self->ERROR('Interval file not found or not provided on command line.');
+      or $self->ERROR('Interval file not found or not provided on command line.');
 
     my %regions;
     foreach my $reg (<$REGION>) {
@@ -41,7 +40,6 @@ sub _build_intervals {
     my @inv_file;
     foreach my $chr ( keys %regions ) {
         my $output_reg = $output . "chr$chr" . "_region_file.list";
-        ##  #my $output_reg = $self->output . "chr$chr" . "_region_file.list";
 
         if ( -e $output_reg ) {
             push @inv_file, $output_reg;
@@ -217,7 +215,6 @@ sub GenotypeGVCF {
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
                 $config->{gatk}, $config->{fasta},    $opts->{num_threads},
                 $input,          shift @region,       $final_output
-                  ####$input,          shift @region,       $output
             );
         }
         push @cmds, $cmd;
@@ -439,7 +436,6 @@ sub CombineVariants {
     my @app_ind = map { "--variant $_ " } @{$indel_files};
 
     my $output = $config->{fqf_id} . ".vcf";
-    ############my $output = $config->{output} . $config->{fqf_id} . ".vcf";
     $self->file_store($output);
 
     my @cmds;
