@@ -24,10 +24,11 @@ sub igv_index {
     my @cmds;
     foreach my $vcf ( @{$gvcf} ) {
         next if ( $vcf !~ /g.vcf$/ );
-        next if ( $vcf =~ /chr.*g.vcf$/ );
-
+        if ( $vcf =~ /chr.*g.vcf$/ ) {
+            $self->ERROR("chromosome gvcf found, please remove first.");
+        }
         my $outfile = $vcf . '.idx';
-        next if ( $self->file_exist($outfile) );
+        $self->file_store($outfile);
 
         my $cmd = sprintf( "%s/igvtools index %s", $config->{igv}, $vcf );
         push @cmds, $cmd;

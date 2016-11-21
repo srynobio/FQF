@@ -85,7 +85,7 @@ sub fastq2bam {
             $self->ERROR("config fastqforward option for type not given");
         }
 
-        ## make output dirs.
+        ## make output directory.
         my $output = $self->output;
 
         ## unpaired files
@@ -97,12 +97,19 @@ sub fastq2bam {
 
             my $file1 = $self->file_frags($pair1);
 
-            # collect tag and uniquify the files.
-            my $tags = $file1->{parts}[0];
+            # collect bam name and uniquify the files.
+            my $individual = $file1->{parts}[0];
+            my $bam_name   = $individual . ".bam";
+
+            my $found = $self->file_exist($bam_name);
+            if ($found) {
+                $self->file_store( @{$found} );
+                next;
+            }
 
             ## FQF will make these output files for you.
             ## created here to add to object.
-            my $path     = $output . $tags;
+            my $path     = $output . $individual;
             my $path_bam = $path . ".bam";
 
             # store the output files.
@@ -110,18 +117,13 @@ sub fastq2bam {
 
             $id_count++;
             my $uniq_id = $file1->{parts}[0] . "_" . $id_count;
-            my $r_group = "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
+            my $r_group = 
+                "\@RG\\tID:$uniq_id\\tSM:$individual\\tPL:ILLUMINA\\tLB:$individual\\tPU:ILLUMINA_$id_count";
 
             my $single_format =
               "-align \'Files=$single;Type=UNPAIRED;RG=$r_group\'";
             my $pair_format =
               "-align \'Files=$pair1,$pair2;Type=PAIRED;RG=$r_group\'";
-
-            ## clean up if exist.
-            if ( $self->file_exist($path_bam) ) {
-                $self->unneeded_temp($output);
-                next;
-            }
 
             my $cmd = sprintf(
                 "ibrun FastQforward.pl fastq2bam %s %s"
@@ -145,19 +147,26 @@ sub fastq2bam {
             my $file1 = $self->file_frags($pair1);
 
             # collect tag and uniquify the files.
-            my $tags = $file1->{parts}[0];
+            my $individual = $file1->{parts}[0];
+            my $bam_name   = $individual . ".bam";
+
+            my $found = $self->file_exist($bam_name);
+            if ($found) {
+                $self->file_store( @{$found} );
+                next;
+            }
 
             ## FQF will make these output files for you.
             ## created here to add to object.
-            my $path     = $output . $tags;
-            my $path_bam = $path . ".bam";
+            my $path_bam = $output . $bam_name;
 
             # store the output files.
             $self->file_store($path_bam);
 
             $id_count++;
             my $uniq_id = $file1->{parts}[0] . "_" . $id_count;
-            my $r_group = "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
+            my $r_group =
+                "\@RG\\tID:$uniq_id\\tSM:$individual\\tPL:ILLUMINA\\tLB:$individual\\tPU:ILLUMINA_$id_count";
 
             my $pair_format =
               "-align \'Files=$pair1,$pair2;Type=PAIRED;RG=$r_group\'";
@@ -191,16 +200,27 @@ sub fastq2bam {
                 my $file1 = $self->file_frags($pair1);
 
                 # collect tag and uniquify the files.
-                my $tags = $file1->{parts}[0];
+                my $individual = $file1->{parts}[0];
+                my $bam_name   = $individual . ".bam";
+
+                my $found = $self->file_exist($bam_name);
+                if ($found) {
+                    $self->file_store( @{$found} );
+                    next;
+                }
 
                 $id_count++;
                 my $uniq_id = $file1->{parts}[0] . "_" . $id_count;
-                my $r_group = "\@RG\\tID:$uniq_id\\tSM:$tags\\tPL:ILLUMINA\\tLB:$tags\\tPU:ILLUMINA_$id_count";
+                my $r_group =
+                    "\@RG\\tID:$uniq_id\\tSM:$individual\\tPL:ILLUMINA\\tLB:$individual\\tPU:ILLUMINA_$id_count";
 
                 ## FQF will make these output files for you.
                 ## created here to add to object.
-                my $bam = $output . $tags;
-                $path_bam = $bam . ".bam";
+
+                my $path_bam = $output . $bam_name;
+
+                # store the output files.
+                $self->file_store($path_bam);
 
                 my $multi_format =
                   "-align \'Files=$pair1,$pair2;Type=PAIRED;RG=$r_group\'";
@@ -237,7 +257,7 @@ sub bam2gvcf {
 
     my $config = $self->class_config;
     my $opts   = $self->tool_options('bam2gvcf');
-    my $files  = $self->file_retrieve;
+    my $files  = $self->file_retrieve('fastq2bam');
 
     my @cmds;
     foreach my $bam ( @{$files} ) {
@@ -250,16 +270,17 @@ sub bam2gvcf {
         my $gvcf    = $f_parts->{name};
         $gvcf =~ s/bam/g.vcf/;
 
+        ## search for alrealy processed files.
+        my $found = $self->file_exist($gvcf);
+        if ($found) {
+            $self->file_store( @{$found} );
+            next;
+        }
+
         ## FQF will make these output files for you.
         ## created here to add to object.
         my $path_gvcf = $output . $gvcf;
         $self->file_store($path_gvcf);
-
-        ## clean up if exist.
-        if ( $self->file_exist($path_gvcf) ) {
-            $self->unneeded_temp($output);
-            next;
-        }
 
         my $cmd = sprintf(
             "ibrun FastQforward.pl bam2gvcf -ref %s -i %s -o %s"
@@ -288,6 +309,7 @@ sub lossless_valadate {
         chomp $bam;
 
         next if ( !$bam =~ /bam$/ );
+        next if ( $bam  =~ /(DNA|theVoid)/ );
         $bam =~ s/\.bam$//g;
 
         my $cmd = sprintf( "lossless_validator.pl -c %s %s %s %s > %s",

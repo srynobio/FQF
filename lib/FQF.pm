@@ -101,17 +101,27 @@ sub pipeline {
             foreach my $cmd ( @{ $stack->{$sub} } ) {
                 say "REVIEW: $cmd";
             }
+
+            ## make command dump for Salvo single runs.
+            my $exe = "$sub.Salvo.txt";
+
+            open( my $OUT, '>', $exe );
+            foreach my $cmd ( @{ $stack->{$sub} } ) {
+                $self->LOG( 'cmd', $cmd );
+                say $OUT $cmd;
+            }
+            close $OUT;
             delete $stack->{$sub};
             $self->remove_empty_dirs;
             next;
         }
-        else {
+        elsif ( $self->execute ) {
             my $stack = $self->{bundle};
             my $exe   = "$sub.FQFexecute.txt";
 
             open( my $OUT, '>', $exe );
             foreach my $cmd ( @{ $stack->{$sub} } ) {
-                $self->LOG('cmd', $cmd);
+                $self->LOG( 'cmd', $cmd );
                 say $OUT $cmd;
             }
             close $OUT;
@@ -136,7 +146,7 @@ sub pull {
     my ( $package, $sub ) = split /::/, $caller;
 
     #collect software for caller
-    my $path = $self->software->{$package};
+    my $path = $self->software->{$package} if $self->software;
     my %programs = ( $package => $path );
 
     # for caller ease, return one large hashref.
@@ -235,10 +245,7 @@ sub deploy {
     my $runtime = $opts->{runtime} || '10:00:00';
 
     ## set min memory.
-    my $min_memory;
-    if ( $opts->{mm} ) {
-        $min_memory = $opts->{mm} || '20';
-    }
+    my $min_memory = $opts->{mm} || 20;
 
     ## set mode to dedicated or idle.
     if ( !$opts->{node} ) {
@@ -263,13 +270,13 @@ sub deploy {
     my $salvoCmd;
     if ( $node eq 'dedicated' ) {
         $salvoCmd = sprintf(
-            "/uufs/chpc.utah.edu/common/home/u0413537/MasterVersions/Salvo/Salvo -cf %s -a ucgd-kp -p ucgd-kp -c kingspeak -m dedicated "
+            "/uufs/chpc.utah.edu/common/home/u0413537/Salvo/Salvo -cf %s -a ucgd-kp -p ucgd-kp -c kingspeak -m dedicated "
               . "-r %s -ec lonepeak -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
             $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit, $min_memory );
     }
     else {
         $salvoCmd = sprintf(
-            "/uufs/chpc.utah.edu/common/home/u0413537/MasterVersions/Salvo/Salvo -cf %s -m idle "
+            "/uufs/chpc.utah.edu/common/home/u0413537/Salvo/Salvo -cf %s -m idle "
               . "-r %s -ec lonepeak -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
             $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit, $min_memory );
     }

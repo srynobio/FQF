@@ -16,6 +16,11 @@ sub fastqc_run {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('fastqc_run');
     my $gz     = $self->file_retrieve;
+
+    ## check and remove found fastqc files.
+    my @found = grep { $_ =~ /fastqc/ } @{$gz};
+    unlink @found if @found;
+
     my $output = $self->output;
 
     my @cmds;
@@ -24,8 +29,8 @@ sub fastqc_run {
         next unless ( $file =~ /(fastq$|fastq.gz$|fq.gz$|fq$)/ );
         $self->file_store($file);
 
-        my $cmd = sprintf( "%s/fastqc --threads %s -o %s -f fastq %s",
-            $config->{fastqc}, $opts->{threads}, $output, $file );
+        my $cmd = sprintf( "fastqc --threads %s -o %s -f fastq %s",
+            $opts->{threads}, $output, $file );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );

@@ -216,7 +216,6 @@ sub list_current_actions {
     say "vcf_complete";
     say "wham_complete";
     say "-----------------------------------\n";
-
 }
 
 ## ---------------------------------------- ##

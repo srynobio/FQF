@@ -64,7 +64,6 @@ my %fqf_opts = ();
 GetOptions(
     \%fqf_opts,              
     "config|cfg=s",
-####    "interval_list|il=s",
 #    "step|s=s",
     "file|f=s",
     "jobs_per_node|jpn=i", 

@@ -21,8 +21,7 @@ sub bgzip {
 
     $self->file_store($output_file);
 
-    my $cmd = sprintf( "%s/bgzip -c %s > %s",
-        $config->{tabix}, $combine_file->[0], $output_file );
+    my $cmd = sprintf( "bgzip -c %s > %s", $combine_file->[0], $output_file );
     $self->bundle( \$cmd );
 }
 
@@ -37,8 +36,7 @@ sub tabix {
 
     my $combine_file = $self->file_retrieve('bgzip');
 
-    my $cmd =
-      sprintf( "%s/tabix -p vcf %s", $config->{tabix}, $combine_file->[0] );
+    my $cmd = sprintf( "tabix -p vcf %s", $combine_file->[0] );
     $self->bundle( \$cmd );
 }
 

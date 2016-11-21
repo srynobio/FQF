@@ -31,8 +31,8 @@ sub bam2fastq {
         my $output = $self->output;
 
         my $cmd = sprintf(
-            "%s/bam2fastq.pl %s %s -c %s %s",
-            $config->{bam2fastq}, $file, $opts->{command_string},
+            "bam2fastq.pl %s %s -c %s %s",
+            $file, $opts->{command_string},
             $opts->{cpu}, $output
         );
         push @cmds, $cmd;
@@ -62,15 +62,34 @@ sub nantomics_bam2fastq {
 
         ( my $id, undef ) = split /--/, $filename;
 
-        my $pair1 = $output . $id . '_1.fastq.gz';
-        my $pair2 = $output . $id . '_2.fastq.gz';
-        $self->file_store($pair1);
-        $self->file_store($pair2);
+        my $file1 = $id . '_1.fastq.gz';
+        my $file2 = $id . '_2.fastq.gz';
+
+        my $found1 = $self->file_exist($file1);
+        my $found2 = $self->file_exist($file2);
+
+        ## search for existing pair files.
+        if ( $found1 and $found2 ) {
+            $self->file_store( @{$found1} );
+            $self->file_store( @{$found2} );
+            next;
+        }
+        elsif ( $found1 and !$found2 ) {
+            unlink $found1;
+        }
+        elsif ( $found2 and !$found1 ) {
+            unlink $found2;
+        }
+
+        my $path1 = $output . $file1;
+        my $path2 = $output . $file2;
+        $self->file_store($path1);
+        $self->file_store($path2);
 
         my $cmd = sprintf(
-            "%s/bam2fastq.pl %s %s -fq %s -fq2 %s",
-            $config->{bam2fastq}, $bam, $opts->{command_string},
-            $pair1, $pair2
+            "bam2fastq.pl %s %s -fq %s -fq2 %s",
+            $bam, $opts->{command_string},
+            $path1, $path2
         );
         push @cmds, $cmd;
     }
@@ -86,20 +105,20 @@ sub uncompress {
 
     my $config = $self->class_config;
     my $opts   = $self->tool_options('uncompress');
-
-    ## get source to collect fq files.
-    my $source = $opts->{source};
-    unless ($source) {
-        $self->ERROR("uncompress requires source option.");
-    }
-
-    my $fastqs = $self->file_retrieve($source);
+    my $fastqs = $self->file_retrieve;
 
     my @cmds;
     foreach my $file ( @{$fastqs} ) {
         chomp $file;
         next unless ( $file =~ /(fastq.gz|fq.gz)/ );
         ( my $output = $file ) =~ s/\.gz//;
+
+        my $found = $self->file_exist($output);
+        if ($found) {
+            $self->file_store( @{$found} );
+            next;
+        }
+
         if ( $output !~ /fastq/ ) {
             $output =~ s/$/.fastq/;
         }

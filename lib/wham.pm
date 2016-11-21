@@ -32,39 +32,44 @@ sub whamg_svtyper {
     my $self = shift;
     $self->pull;
 
-    my $config = $self->class_config;
-    my $opts   = $self->tool_options('whamg_svtyper');
-    my $files  = $self->file_retrieve('fastq2bam');
-
+    my $config   = $self->class_config;
+    my $opts     = $self->tool_options('whamg_svtyper');
+    my $files    = $self->file_retrieve;
     my $skip_ids = $self->seqid_skip;
+    my $output   = $self->output;
 
     my @cmds;
     foreach my $bam ( @{$files} ) {
         chomp $bam;
 
         next unless ( $bam =~ /bam$/ );
+        next if ( $bam =~ /(DNA|theVoid)/ );
 
-        my $file = $self->file_frags($bam);
-        my $output =
-            $config->{output}
-          . $file->{parts}[0]
-          . ".unfiltered.genotype.wham.vcf";
-        $output =~ s/\.bam//g;
+        my $file      = $self->file_frags($bam);
+        my $wham_name = $file->{parts}[0] . ".unfiltered.genotype.wham.vcf";
+        $wham_name =~ s/\.bam//g;
 
-        $self->file_store($output);
+        my $found = $self->file_exist($wham_name);
+        if ($found) {
+            $self->file_store($wham_name);
+            next;
+        }
+
+        my $output_file = $output . $wham_name;
+        $self->file_store($output_file);
 
         my $threads;
         ( $opts->{x} ) ? ( $threads = $opts->{x} ) : ( $threads = 1 );
 
         ## create temp.
-        my $temp_bam = $config->{output} . $file->{parts}[0] . ".temp.vcf";
-        my $temp_log = $config->{output} . $file->{parts}[0] . ".log";
+        ( my $temp_bam = $output_file ) =~ s/unfiltered.genotype/temp/;
+        ( my $temp_log = $output_file ) =~ s/$/\.log/;
 
         my $cmd = sprintf(
             "whamg -a %s -x %s -f %s -e %s > %s 2> %s && svtyper -B %s -i %s -o %s && rm %s",
             $config->{fasta}, $threads,  $bam, $skip_ids,
             $temp_bam,        $temp_log, $bam, $temp_bam,
-            $output,          $temp_bam
+            $output_file,     $temp_bam
         );
         push @cmds, $cmd;
     }

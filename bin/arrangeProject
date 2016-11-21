@@ -27,11 +27,12 @@ Description:
 
 Required options:
 
-    --run   :   Allow arrangeProject to begin.
+    --run, -r   :   Allow arrangeProject to begin.
 
 Additional options:
 
-    -help   :   This usage statement.                                    
+    -dir, -d    :   Directory to run arrangeProject in. [default: current]
+    -help, -h   :   This usage statement.                                    
 
 EOU
 
@@ -40,18 +41,19 @@ my %c_opts = ();
 GetOptions( 
     \%c_opts, 
     "run|r",
+    "dir|d=s",
     "help|h"
 );
 die $usage if $c_opts{help};
 die $usage unless ($c_opts{run});
 
 ## remove unneeded
-say "Removing unneeded files...";
-my @to_rm = glob("*theVoid chr* temp-core* *cfg PROGRESS*");
-foreach my $trash (@to_rm) {
-    chomp $trash;
-    system("rm -rf $trash");
-}
+#say "Removing unneeded files...";
+#my @to_rm = glob("*theVoid chr* temp-core* *cfg PROGRESS*");
+#foreach my $trash (@to_rm) {
+#    chomp $trash;
+#    system("rm -rf $trash");
+#}
 
 ## create the needed directories
 say "Building needed directories...";
@@ -68,15 +70,15 @@ make_path(
 ## list of all the file types to collect.
 ## maintain order
 my @file_types = (
-    "bam",          "bam.bai",
-    "fastq",        "fq",
-    "fastqc*",      "flagstat",
-    "stats",        "ann*",
-    "fcounts*",     "g.vcf",
-    "g.vcf.idx",    "WHAM*",
-    "log.txt",      "multiqc.report.html",
-    "summary.html", "pdf",
-    "csv",          "genes.txt",
+    "*bam",          "*bam.bai",
+    "*fastq\$",        "*fq\$",
+    "*fastqc*",      "*flagstat",
+    "*stats",        "*ann*",
+    "*fcounts*",     "*g.vcf",
+    "*g.vcf.idx",    "*WHAM*",
+    "log.txt",      "*multiqc.report.html*",
+    "*summary.html", "*pdf",
+    "*csv",          "*genes.txt",
     "FQF*"
 );
 
@@ -84,7 +86,7 @@ my @file_types = (
 say "Moving file types into correct directories...";
 foreach my $type (@file_types) {
     chomp $type;
-    my @to_move = glob "*$type";
+    my @to_move = glob "$type";
     my @abs_to_move = map { abs_path $_ } @to_move;
     location_mv( \@abs_to_move, $type );
 }
@@ -109,6 +111,9 @@ my %removeable = (
     'snp_recal'               => '1',
     'snp_recal.idx'           => '1',
     'snp_tranches'            => '1',
+    'theVoid'                 => '1',
+    'chr'                     => '1',
+    'temp-core'               => '1',
 );
 
 say "Cleaning up trash...";

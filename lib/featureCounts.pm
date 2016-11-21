@@ -17,10 +17,15 @@ sub featureCounts_run {
     my $opts   = $self->tool_options('featureCounts_run');
     my $bams   = $self->file_retrieve;
 
+    ## remove old file if found.
+    my @found = grep { $_ =~ /(fcounts|fcounts.summary)/ } @{$bams};
+    unlink @found if @found;
+
     my @cmds;
     foreach my $file ( @{$bams} ) {
         chomp $file;
         next unless ( $file =~ /\.bam$/ );
+        next if ( $file =~ /(DNA|theVoid)/ );
         $self->file_store($file);
 
         ( my $indiv = $file ) =~ s/\.bam//;

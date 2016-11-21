@@ -72,6 +72,12 @@ sub SelectVariants {
     my @cmds;
     foreach my $vcf (@gvcfs) {
         chomp $vcf;
+
+        if ( $vcf =~ /chr.*g.vcf$/ ) {
+            $self->file_store($vcf);
+            next;
+#            $self->ERROR("chromosome gvcf found, please remove first.");
+        }
         my $f_parts = $self->file_frags($vcf);
         my $output  = $self->output;
 
@@ -89,7 +95,7 @@ sub SelectVariants {
                 "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
                   . " -T SelectVariants -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods "
-                  . "--variant %s -L %s -o %s",
+                  . "--variant:VCF %s -L %s -o %s",
                 $opts->{xmx}, $opts->{gc_threads}, $config->{gatk},
                 $config->{fasta}, $vcf, $region, $final_output );
             push @cmds, $cmd;
@@ -127,9 +133,16 @@ sub CombineGVCF {
     foreach my $select ( keys %chr_groups ) {
         chomp $select;
 
-        my $variant = join( " --variant ", @{ $chr_groups{$select} } );
+        my $variant = join( " --variant:VCF ", @{ $chr_groups{$select} } );
         my $chrdir = $output . "$select/";
         make_path($chrdir);
+
+        ## find pre-ran files.
+        my $found = $self->file_exist("$select.combined.g.vcf.gz");
+        if ( $found) {
+            $self->file_store(@{$found});
+            next;
+        }
 
         my $final_output = $chrdir . "$select.combined.g.vcf.gz";
         $self->file_store($final_output);
@@ -138,7 +151,7 @@ sub CombineGVCF {
             "java -jar -Xmx%sg -XX:ParallelGCThreads=%s %s/GenomeAnalysisTK.jar "
               . " -T CombineGVCFs -R %s "
               . "--disable_auto_index_creation_and_locking_when_reading_rods "
-              . "--variant %s -o %s",
+              . "--variant:VCF %s -o %s",
             $opts->{xmx}, $opts->{gc_threads}, $config->{gatk},
             $config->{fasta}, $variant, $final_output );
         push @cmds, $cmd;
@@ -156,7 +169,7 @@ sub GenotypeGVCF {
     my $opts   = $self->tool_options('GenotypeGVCF');
     my $output = $self->output;
 
-    my $files = $self->file_retrieve;
+    my $files = $self->file_retrieve('CombineGVCF');
     my @gvcfs = grep { /chr(\d{1,2}|MT|X|Y).combined.g.vcf.gz$/ } @{$files};
 
     # collect the 1k backgrounds.
@@ -190,6 +203,13 @@ sub GenotypeGVCF {
         my @region = grep { $_ =~ /$chrom\_/ } @{$intv};
 
         my $final_output = $output . $chrom . '_genotyped.vcf';
+
+        ## look for existing genotyped files.
+        my @found = $self->file_exist($chrom . '_genotyped.vcf');
+        if (@found) {
+            $self->file_store($final_output);
+            next;
+        }
         $self->file_store($final_output);
 
         my $cmd;
@@ -198,7 +218,7 @@ sub GenotypeGVCF {
                 "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods --num_threads %s "
-                  . "--variant %s --variant %s -L %s -o %s",
+                  . "--variant:VCF %s --variant:VCF %s -L %s -o %s",
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
                 $config->{gatk}, $config->{fasta},    $opts->{num_threads},
                 $input,          $back_variants,      shift @region,
@@ -211,7 +231,7 @@ sub GenotypeGVCF {
                 "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods "
-                  . "--num_threads %s --variant %s -L %s -o %s",
+                  . "--num_threads %s --variant:VCF %s -L %s -o %s",
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
                 $config->{gatk}, $config->{fasta},    $opts->{num_threads},
                 $input,          shift @region,       $final_output
@@ -229,7 +249,7 @@ sub CatVariants_Genotype {
     $self->pull;
 
     my $config = $self->class_config;
-    my $vcf    = $self->file_retrieve;
+    my $vcf    = $self->file_retrieve('GenotypeGVCF');
     my @iso    = grep { /genotyped.vcf$/ } @{$vcf};
     my $output = $self->output;
 
@@ -257,6 +277,13 @@ sub CatVariants_Genotype {
     $variant =~ s/^/-V /;
 
     my $final_output = $output . $config->{fqf_id} . '_cat_genotyped.vcf';
+
+    ## look for pre-ran files.
+    my @found = $self->file_exist($config->{fqf_id} . '_cat_genotyped.vcf');
+    if ( @found ) {
+        $self->file_store($final_output);
+        next;
+    }
     $self->file_store($final_output);
 
     my $cmd = sprintf(
@@ -303,7 +330,7 @@ sub VariantRecalibrator_SNP {
         $opts->{num_threads}, join( ' -resource:', @$resource ),
         join( ' -an ', @$anno ), $genotpd[0],
         $recalFile, $tranchFile,
-        $rscriptFile
+       $rscriptFile
     );
     push @cmds, $cmd;
     $self->bundle( \@cmds );
@@ -362,12 +389,13 @@ sub ApplyRecalibration_SNP {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('ApplyRecalibration_SNP');
 
-    my $recal_files = $self->file_retrieve('VariantRecalibrator_SNP');
-    my $get         = $self->file_retrieve('CatVariants_Genotype');
-    my $genotpd     = shift @{$get};
+    my $file_stack         = $self->file_retrieve('CatVariants_Genotype');
+    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf$/ } @{$file_stack};
+    my @recal_file  = grep { $_ =~ /_snp_recal$/ } @{$file_stack};
+    my @tranch_file = grep { $_ =~ /_snp_tranches$/ } @{$file_stack};
 
     # need to add a copy because it here.
-    ( my $output = $genotpd ) =~ s/_genotyped.vcf$/_recal_SNP.vcf/g;
+    ( my $output = $genotpd[0] ) =~ s/_genotyped.vcf$/_recal_SNP.vcf/g;
     $self->file_store($output);
 
     my @cmds;
@@ -376,12 +404,12 @@ sub ApplyRecalibration_SNP {
           . "-T ApplyRecalibration "
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-R %s --ts_filter_level %s --num_threads %s --excludeFiltered "
-          . "-input %s %s %s -mode SNP -o %s",
+          . "-input:VCF %s -recalFile %s -tranchesFile %s -mode SNP -o %s",
         $opts->{xmx},             $config->{tmp},
         $config->{gatk},          $config->{fasta},
         $opts->{ts_filter_level}, $opts->{num_threads},
-        $genotpd,                 shift @{$recal_files},
-        shift @{$recal_files},    $output
+        $genotpd[0],                 $recal_file[0],
+        $tranch_file[0],             $output
     );
     push @cmds, $cmd;
     $self->bundle( \@cmds );
@@ -393,14 +421,16 @@ sub ApplyRecalibration_INDEL {
     my $self = shift;
     $self->pull;
 
-    my $config      = $self->class_config;
-    my $opts        = $self->tool_options('ApplyRecalibration_INDEL');
-    my $recal_files = $self->file_retrieve('VariantRecalibrator_INDEL');
-    my $get         = $self->file_retrieve('CatVariants_Genotype');
-    my $genotpd     = shift @{$get};
+    my $config = $self->class_config;
+    my $opts   = $self->tool_options('ApplyRecalibration_INDEL');
+
+    my $file_stack  = $self->file_retrieve('CatVariants_Genotype');
+    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf$/ } @{$file_stack};
+    my @recal_file  = grep { $_ =~ /_indel_recal$/ } @{$file_stack};
+    my @tranch_file = grep { $_ =~ /_indel_tranches$/ } @{$file_stack};
 
     # need to add a copy because it here.
-    ( my $output = $genotpd ) =~ s/_genotyped.vcf$/_recal_INDEL.vcf/g;
+    ( my $output = $genotpd[0] ) =~ s/_genotyped.vcf$/_recal_INDEL.vcf/g;
     $self->file_store($output);
 
     my @cmds;
@@ -409,12 +439,12 @@ sub ApplyRecalibration_INDEL {
           . "-T ApplyRecalibration "
           . "--disable_auto_index_creation_and_locking_when_reading_rods "
           . "-R %s --ts_filter_level %s --num_threads %s --excludeFiltered "
-          . "-input %s %s %s -mode INDEL -o %s",
+          . "-input:VCF %s -recalFile %s -tranchesFile %s -mode INDEL -o %s",
         $opts->{xmx},             $config->{tmp},
         $config->{gatk},          $config->{fasta},
         $opts->{ts_filter_level}, $opts->{num_threads},
-        $genotpd,                 shift @{$recal_files},
-        shift @{$recal_files},    $output
+        $genotpd[0],                 $recal_file[0],
+        $tranch_file[0],             $output
     );
     push @cmds, $cmd;
     $self->bundle( \@cmds );

@@ -223,20 +223,8 @@ sub file_retrieve {
 
 sub file_exist {
     my ( $self, $filename ) = @_;
-
-    my $exist = 0;
-    if ( $filename =~ /\// ) {
-        if ( -e $filename and -s $filename ) {
-            $exist = 1;
-        }
-    }
-    else {
-        my $path_file = $self->output . $filename;
-        if ( -e $path_file and -s $path_file ) {
-            $exist = 1;
-        }
-    }
-    return $exist;
+    my @match = grep { $_ =~ /$filename$/ } @{ $self->{start_files} };
+    (@match) ? ( return \@match ) : (return);
 }
 
 #-----------------------------------------------------------
