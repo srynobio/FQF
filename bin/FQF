@@ -34,6 +34,8 @@ Additional options:
     --run, -r               Will run the FQF pipeline.
                             When this option is off a display of commands will be piped to STDOUT.
 
+    --qstat_limit, -ql      Limit to the number of qstat jobs to launch at one time. [DEFAULT 50]
+
     --error_check, -ec      Run quick check of log files for run errors.
 
     --fqf_check, -fc        Check fqf2bam and bam2gvcf for completed files.
