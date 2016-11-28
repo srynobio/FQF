@@ -88,9 +88,10 @@ sub pipeline {
 
         ## check for no commands in bundle
         ## for step which don't run exterior commands.
-        if ( !$self->{bundle} ) {
-            $self->WARN("No command for step: $sub.");
-            delete $self->{bundle};
+        if ( !$self->{bundle}->{$sub}[0] ) {
+            $self->WARN("No commands or steps for : $sub");
+            $self->LOG( 'progress', $sub );
+            delete $self->{bundle}->{$sub};
             next;
         }
 

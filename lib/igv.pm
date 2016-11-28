@@ -24,8 +24,13 @@ sub igv_index {
     my @cmds;
     foreach my $vcf ( @{$gvcf} ) {
         next if ( $vcf !~ /g.vcf$/ );
-        if ( $vcf =~ /chr.*g.vcf$/ ) {
-            $self->ERROR("chromosome gvcf found, please remove first.");
+        next if ( $vcf =~ /chr.*g.vcf$/ );
+        next if ( $vcf =~ /thevoid/i );
+
+        my $found = $self->file_exist($vcf);
+        if ($found) {
+            $self->file_store( @{$found} );
+            next;
         }
         my $outfile = $vcf . '.idx';
         $self->file_store($outfile);

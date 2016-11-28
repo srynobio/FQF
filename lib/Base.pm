@@ -66,14 +66,6 @@ has execute => (
     },
 );
 
-has step => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $self->commandline->{step};
-    },
-);
-
 has pipeline_version => (
     is      => 'ro',
     default => sub {
@@ -88,22 +80,6 @@ has class_config => (
         my $self = shift;
         return $self->{class_config};
     }
-);
-
-has qstat_limit => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $self->commandline->{qstat_limit} || '50';
-    },
-);
-
-has uid => (
-    is      => 'ro',
-    default => sub {
-        my $self = shift;
-        return $ENV{USER};
-    },
 );
 
 #-----------------------------------------------------------

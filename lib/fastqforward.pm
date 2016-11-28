@@ -99,6 +99,7 @@ sub fastq2bam {
 
             # collect bam name and uniquify the files.
             my $individual = $file1->{parts}[0];
+            next if ($individual =~ /\.bam$/);
             my $bam_name   = $individual . ".bam";
 
             my $found = $self->file_exist($bam_name);
@@ -148,6 +149,7 @@ sub fastq2bam {
 
             # collect tag and uniquify the files.
             my $individual = $file1->{parts}[0];
+            next if ($individual =~ /\.bam$/);
             my $bam_name   = $individual . ".bam";
 
             my $found = $self->file_exist($bam_name);
@@ -201,6 +203,7 @@ sub fastq2bam {
 
                 # collect tag and uniquify the files.
                 my $individual = $file1->{parts}[0];
+                next if ($individual =~ /\.bam$/);
                 my $bam_name   = $individual . ".bam";
 
                 my $found = $self->file_exist($bam_name);

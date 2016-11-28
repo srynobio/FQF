@@ -10,13 +10,14 @@ use Getopt::Long;
 my $usage = << "EOU";
 
 Synopsis:
-    ./FQF -cfg <FILE> -il <PATH> > command_review.txt
-    ./FQF -cfg <FILE> -il <PATH> --run
-    ./FQF -cfg <FILE> -il <PATH> -f <FILE> --run
+    ./FQF -cfg <FILE> --run
     ./FQF -ec
-    ./FQF -c
+    ./FQF -fc
+    ./FQF -clean
 
 Description:
+
+    FQF version 1.3.1
 
     FQF is a NGS pipeline created for the 
     Utah Genome Project (UGP) and The USTAR Center for Genetic Discovery (UCGD)
@@ -28,17 +29,7 @@ Required options:
 
     --config, -cfg          FQF configuration file.
 
-    --step, -s              Which step of the pipeline you want to run.  
-                            Current steps implemented: toGVCF, QC, Genotype, WHAM
-                            Each step has a corresponding config file located in /data/Config_files
-
-####    --interval_list, -il    Region list file for GATK genotyping. [Example: 1:10929-11532]
-   ####                         Required if running toGVCF step.
-
 Additional options:
-
-    --file, -f              List of files (including path) from which to start FQF.
-                            File must match previous step FQF would have ran.
 
     --run, -r               Will run the FQF pipeline.
                             When this option is off a display of commands will be piped to STDOUT.
@@ -46,11 +37,6 @@ Additional options:
     --error_check, -ec      Run quick check of log files for run errors.
 
     --fqf_check, -fc        Check fqf2bam and bam2gvcf for completed files.
-
-    --qstat_limit, -ql      Limit to the number of qstat jobs to launch at one time. [DEFAULT 10]
-
-##############    --sbatch_time, -st      Option to override sbatch run time from defaults, example: 4:00:00
-                            Value will be set for all sbatch scripts.
 
     --clean, -c             Will clean up all log, data, slurm, index and report files.
 
@@ -64,12 +50,9 @@ my %fqf_opts = ();
 GetOptions(
     \%fqf_opts,              
     "config|cfg=s",
-#    "step|s=s",
     "file|f=s",
     "jobs_per_node|jpn=i", 
     "qstat_limit|ql=i",
-#####    "sbatch_time|st=s", 
-##    "command_review|cr",
     "fqf_check|fc",
     "error_check|ec",      
     "run|r",               
@@ -80,7 +63,7 @@ GetOptions(
 die $usage if $fqf_opts{help};
 
 ## add version
-$fqf_opts{pipeline_version} = '1.2.2';
+$fqf_opts{pipeline_version} = '1.3.2';
 
 ## version check
 if ( $fqf_opts{version} ) {
@@ -90,7 +73,7 @@ if ( $fqf_opts{version} ) {
 
 # set up commandline defaults.
 if ( $fqf_opts{clean} ) {
-    `rm -rf core.* *.log* *err CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp *theVoid`;
+    `rm -rf *err *FQFexecute.txt core.* *.log* *err CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp *theVoid`;
     `Salvo -clean`;
     exit(0);
 }
@@ -100,23 +83,22 @@ if ( $fqf_opts{fqf_check} ) {
     system("grep 'gVCF  -->' bam2gvcf.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'");
     exit(0);
 }
-
 ## error checks.
 if ( $fqf_opts{error_check} ) {
-    my @current_files = glob <"*">;
-    foreach my $review ( @current_files) {
-        chomp $review;
-        next if ( ! $review =~ /log$/ );
-        system("grep -i 'error' $review");
-        system("grep -i 'failed' $review");
-        system("grep -i 'exceptions' $review");
+    my $DIR = IO::Dir->new('.');
+
+    foreach my $file ( $DIR->read) {
+        chomp $file;
+        next if ( -d $file);
+        next if ( $file !~ /(log|err)/);
+        system("grep -i error $file"); 
+        system("grep -i failed $file"); 
     }
     exit(0);
 }
 
 ## check before moving on.
 die "Required options not met\n$usage" unless ( $fqf_opts{config});
-#die "Required options not met\n$usage" unless ( $fqf_opts{config} and $fqf_opts{step});
 
 ## build object
 my $fqf = FQF->new( commandline => \%fqf_opts, );
@@ -124,17 +106,3 @@ my $fqf = FQF->new( commandline => \%fqf_opts, );
 REPROCESS:
 $fqf->pipeline;
 
-#if ($fqf_opts{step} eq 'toGVCF') {
-#    my @bams  = `grep 'BAM  -->' fastq2bam.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
-#    my @gvcfs = `grep 'gVCF  -->' bam2gvcf.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
-#
-#    my @bam_founds  = grep { $_ =~ /not found/ } @bams;
-#    my @gvcf_founds = grep { $_ =~ /not found/ } @gvcfs;
-#
-#    if ( @bam_founds or @gvcf_founds) {
-#        system "perl -p -i -e 's/fastq2bam:complete//' PROGRESS";
-#        system "perl -p -i -e 's/bam2gvcf:complete//' PROGRESS";
-#        goto REPROCESS;
-#    }
-#}
-#

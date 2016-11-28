@@ -73,11 +73,12 @@ sub SelectVariants {
     foreach my $vcf (@gvcfs) {
         chomp $vcf;
 
-        if ( $vcf =~ /chr.*g.vcf$/ ) {
-            $self->file_store($vcf);
+        my $found = $self->file_exist($vcf);
+        if ($found) {
+            $self->file_store( @{$found} );
             next;
-#            $self->ERROR("chromosome gvcf found, please remove first.");
         }
+
         my $f_parts = $self->file_frags($vcf);
         my $output  = $self->output;
 
@@ -205,7 +206,7 @@ sub GenotypeGVCF {
         my $final_output = $output . $chrom . '_genotyped.vcf';
 
         ## look for existing genotyped files.
-        my @found = $self->file_exist($chrom . '_genotyped.vcf');
+        my @found = $self->file_exist( $chrom . '_genotyped.vcf' );
         if (@found) {
             $self->file_store($final_output);
             next;
@@ -223,7 +224,6 @@ sub GenotypeGVCF {
                 $config->{gatk}, $config->{fasta},    $opts->{num_threads},
                 $input,          $back_variants,      shift @region,
                 $final_output
-                  ###$output
             );
         }
         else {
@@ -306,11 +306,9 @@ sub VariantRecalibrator_SNP {
     my @genotpd = grep { /_cat_genotyped.vcf$/ } @{$files};
     my $output  = $self->output;
 
-    my $recalFile = '-recalFile ' . $output . $config->{fqf_id} . '_snp_recal';
-    my $tranchFile =
-      '-tranchesFile ' . $output . $config->{fqf_id} . '_snp_tranches';
-    my $rscriptFile =
-      '-rscriptFile ' . $output . $config->{fqf_id} . '_snp_plots.R';
+    my $recalFile   = '-recalFile ' . $output . $config->{fqf_id} . '_snp_recal';
+    my $tranchFile  = '-tranchesFile ' . $output . $config->{fqf_id} . '_snp_tranches';
+    my $rscriptFile = '-rscriptFile ' . $output . $config->{fqf_id} . '_snp_plots.R';
 
     $self->file_store($recalFile);
     $self->file_store($tranchFile);
@@ -459,11 +457,14 @@ sub CombineVariants {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('CombineVariants');
 
-    my $snp_files   = $self->file_retrieve('ApplyRecalibration_SNP');
-    my $indel_files = $self->file_retrieve('ApplyRecalibration_INDEL');
+    my $snp_files = $self->file_retrieve('ApplyRecalibration_SNP');
+    my @recal_snp = grep { $_ =~ /_cat_recal_SNP.vcf$/ } @{$snp_files};
 
-    my @app_snp = map { "--variant $_ " } @{$snp_files};
-    my @app_ind = map { "--variant $_ " } @{$indel_files};
+    my $indel_files = $self->file_retrieve('ApplyRecalibration_INDEL');
+    my @recal_indel = grep { $_ =~ /_cat_recal_INDEL.vcf$/ } @{$indel_files};
+
+    my @app_snp = map { "--variant $_ " } @recal_snp;
+    my @app_ind = map { "--variant $_ " } @recal_indel;
 
     my $output = $config->{fqf_id} . ".vcf";
     $self->file_store($output);

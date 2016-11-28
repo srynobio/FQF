@@ -54,7 +54,7 @@ sub nantomics_bam2fastq {
     my @cmds;
     foreach my $bam ( @{$bams} ) {
         chomp $bam;
-        next unless ( $bam =~ /bam$/ );
+        next unless ( $bam =~ /.*DNA.*bam$/ );
         my $output = $self->output;
 
         my $file     = $self->file_frags($bam);
@@ -70,6 +70,9 @@ sub nantomics_bam2fastq {
 
         ## search for existing pair files.
         if ( $found1 and $found2 ) {
+            $self->WARN(
+                "found previous bam2fastq files: $file1 $file2"
+            );
             $self->file_store( @{$found1} );
             $self->file_store( @{$found2} );
             next;
