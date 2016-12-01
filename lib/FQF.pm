@@ -271,15 +271,18 @@ sub deploy {
     my $salvoCmd;
     if ( $node eq 'dedicated' ) {
         $salvoCmd = sprintf(
-            "/uufs/chpc.utah.edu/common/home/u0413537/Salvo/Salvo -cf %s -a ucgd-kp -p ucgd-kp -c kingspeak -m dedicated "
+            "Salvo -cf %s -a ucgd-kp -p ucgd-kp -c kingspeak -m dedicated "
               . "-r %s -ec lonepeak -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
-            $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit, $min_memory );
+            $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit,
+            $min_memory );
     }
     else {
-        $salvoCmd = sprintf(
-            "/uufs/chpc.utah.edu/common/home/u0413537/Salvo/Salvo -cf %s -m idle "
+        $salvoCmd =
+          sprintf( 
+              "Salvo -cf %s -m idle "
               . "-r %s -ec lonepeak -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
-            $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit, $min_memory );
+            $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit,
+            $min_memory );
     }
 
     my $run = `$salvoCmd`;
