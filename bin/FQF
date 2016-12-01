@@ -75,7 +75,7 @@ if ( $fqf_opts{version} ) {
 
 # set up commandline defaults.
 if ( $fqf_opts{clean} ) {
-    `rm -rf *err *FQFexecute.txt core.* *.log* *err CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp *theVoid`;
+    `rm -rf *.sam.fixbam *err *FQFexecute.txt core.* *.log* *err CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp *theVoid`;
     `Salvo -clean`;
     exit(0);
 }
@@ -93,8 +93,8 @@ if ( $fqf_opts{error_check} ) {
         chomp $file;
         next if ( -d $file);
         next if ( $file !~ /(log|err)/);
-        system("grep -i error $file"); 
-        system("grep -i failed $file"); 
+        system("grep -iH error $file"); 
+        system("grep -iH failed $file"); 
     }
     exit(0);
 }
@@ -105,6 +105,29 @@ die "Required options not met\n$usage" unless ( $fqf_opts{config});
 ## build object
 my $fqf = FQF->new( commandline => \%fqf_opts, );
 
+## keep rerun count
+my $run_count = 1;
+
 REPROCESS:
 $fqf->pipeline;
+
+if ($fqf_opts{config} =~ /toGVCF/ ) {
+    no warnings;
+    my @bams  = `grep 'BAM  -->' fastq2bam.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
+    my @gvcfs = `grep 'gVCF  -->' bam2gvcf.log-*|perl -lane 'if (! -e \$F[-1]) { print \"not found \$_\"}'`;
+
+    my @bam_founds  = grep { $_ =~ /not found/ } @bams;
+    my @gvcf_founds = grep { $_ =~ /not found/ } @gvcfs;
+
+    if ( @bam_founds or @gvcf_founds) {
+        if ( $run_count => 5 ) {
+            $fqf->ERROR("Rerun of toGVCF attempted 5 times, failed all!");
+            exit(1);
+        }
+        system "perl -p -i -e 's/fastq2bam:complete//' PROGRESS";
+        system "perl -p -i -e 's/bam2gvcf:complete//' PROGRESS";
+        $run_count++;
+        goto REPROCESS;
+    }
+}
 

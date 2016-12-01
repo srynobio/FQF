@@ -16,7 +16,7 @@ sub multiqc_run {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('multiqc_run');
 
-    my $work_dir    = $self->output;
+    my $work_dir    = '.';
     my $output_file = $config->{fqf_id} . ".multiqc.report";
 
     my $cmd = sprintf( "multiqc %s --force --no-data-dir --filename %s",
