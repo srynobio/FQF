@@ -51,13 +51,19 @@ die $usage unless ($c_opts{run});
 ## --------------------
 ## collect unneeded files.
 my @remove_types = (
-    "chr",
+    "_cat_genotyped.vcf.idx",
+    "_cat_recal_INDEL.vcf.idx",
+    "_cat_recal_SNP.vcf.idx",
+    "_indel_recal.idx",
+    "_snp_recal.idx",
+    "chr_",
     "combined",
     "genotyped",
     "file.list",
     "theVoid",
     "cat_recal",
     "_indel_tranches",
+    "tranches\$",
     "_indel_recal",
     "_snp_recal",
     "_plots.R",
@@ -67,17 +73,29 @@ my @remove_types = (
     "FATAL.txt",
     "wham.vcf.log",
     "fastq\$",
-    "genotype.wham.vcf\$",
+    "unfiltered.genotype.wham.vcf\$",
+    "unfiltered.genotype.wham.vcf.log\$",
 );
 
 my $dir = getcwd;
 my @to_rm;
+my @dir_check;
 finddepth(
     sub {
         return if ( $_ eq '.' || $_ eq '..' );
         foreach my $type (@remove_types) {
             if ( $_ =~ /$type/ ) {
                 push @to_rm, abs_path($_);
+                next;
+            }
+            if ( -d $_ ) {
+                push @dir_check, abs_path($_);
+                next;
+            }
+            if ( -l $_ ) {
+                say "removing link $_";
+                unlink $_;
+                next;
             }
         }
     },
@@ -85,15 +103,17 @@ finddepth(
 );
 
 ## now remove files and directories.
-say "Cleaning up trash...";
+say "Moving removable to trashdir...";
+mkdir "trashdir" unless (-e 'trashdir');
 foreach my $trash (@to_rm) {
     if ( -f $trash ) {
-        unlink $trash;
-    }
-    elsif ( -d $trash ) {
-        remove_tree($trash);
+        move($trash, 'trashdir');
     }
 }
+
+## remove empty dirs.
+map { remove_empty_dirs($_) } @dir_check;
+
 
 ## ----------------------------
 ## create the needed directories
@@ -112,7 +132,7 @@ make_path(
 ## maintain order
 my @kept_file_types = (
     "fastq.gz",
-    "DNA.*bam",
+    "_DNA-",
     "bam\$",
     "bam.bai\$",
     "fastqc",
@@ -152,27 +172,22 @@ finddepth(
 foreach my $found (keys %type_match) {
     location_mv($found, $type_match{$found});
 }
-
-## clean up empty dir and finish.
-dir_cleanup($dir);
 say "Finished!";
 
 ## ----------------------------------------------------- ##
 
-sub dir_cleanup {
+sub remove_empty_dirs {
     my $dir = shift;
+    return if (! -e $dir );
 
-    my $DIR = IO::Dir->new($dir);
+    opendir( my $DIR, $dir ) or warn "Could not open directory $dir";
+
     my $file_count;
     foreach my $file ( readdir $DIR ) {
         next if ( $file eq '.' || $file eq '..' );
-        # get stragglers.
-        if ( $file =~ /tranches$/ ) {
-            unlink $file;
-        }
         $file_count++;
         if ( -d $file ) {
-            dir_cleanup(abs_path($file));
+            remove_empty_dirs( abs_path($file) );
         }
     }
     if ( !$file_count ) {
@@ -200,7 +215,7 @@ sub location_mv {
         case /fastq.gz/ {
             map { move( $_, 'Data/Primary_Data' ) } @to_mv;
         }
-        case /DNA.*bam/ {
+        case /DNA/ {
             map { move( $_, 'Data/Primary_Data' ) } @to_mv;
         }
         case /bam/ {
