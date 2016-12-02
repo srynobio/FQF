@@ -75,7 +75,7 @@ if ( $fqf_opts{version} ) {
 
 # set up commandline defaults.
 if ( $fqf_opts{clean} ) {
-    `rm -rf *processing *launched *complete *cmds *error *.sam.fixbam *err *FQFexecute.txt core.* CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp *theVoid`;
+    `rm -rf *.log-* *processing *launched *complete *cmds *error *.sam.fixbam *err *FQFexecute.txt core.* CMD_stack.store *sbatch *.out launch.index cmd_tmp slurm_tmp *theVoid`;
     exit(0);
 }
 
@@ -120,6 +120,8 @@ if ($fqf_opts{config} =~ /toGVCF/ ) {
 
     if ( @bam_founds or @gvcf_founds) {
         if ( $run_count => 5 ) {
+            `Salvo -job_flush`;
+            $fqf->remove_empty_dirs;
             $fqf->ERROR("Rerun of toGVCF attempted 5 times, failed all!");
             exit(1);
         }
