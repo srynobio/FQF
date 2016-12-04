@@ -26,13 +26,14 @@ sub igv_index {
         next if ( $vcf !~ /g.vcf$/ );
         next if ( $vcf =~ /chr.*g.vcf$/ );
         next if ( $vcf =~ /thevoid/i );
+        
+        my $outfile = $vcf . '.idx';
 
-        my $found = $self->file_exist($vcf);
+        my $found = $self->file_exist($outfile);
         if ($found) {
             $self->file_store( @{$found} );
             next;
         }
-        my $outfile = $vcf . '.idx';
         $self->file_store($outfile);
 
         my $cmd = sprintf( "%s/igvtools index %s", $config->{igv}, $vcf );
