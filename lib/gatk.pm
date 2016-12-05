@@ -73,12 +73,6 @@ sub SelectVariants {
     foreach my $vcf (@gvcfs) {
         chomp $vcf;
 
-        my $found = $self->file_exist($vcf);
-        if ($found) {
-            $self->file_store( @{$found} );
-            next;
-        }
-
         my $f_parts = $self->file_frags($vcf);
         my $output  = $self->output;
 
@@ -87,7 +81,14 @@ sub SelectVariants {
             my ( $chr, undef ) = split /_/, $parts[-1];
 
             my $filename = "$chr\_" . $f_parts->{name};
-            my $chrdir   = $output . "$chr/";
+
+            my $found = $self->file_exist($filename);
+            if ($found) {
+                $self->file_store( @{$found} );
+                next;
+            }
+
+            my $chrdir = $output . "$chr/";
             make_path($chrdir);
             my $final_output = $chrdir . $filename;
             $self->file_store($final_output);
