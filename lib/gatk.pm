@@ -388,10 +388,14 @@ sub ApplyRecalibration_SNP {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('ApplyRecalibration_SNP');
 
-    my $file_stack         = $self->file_retrieve('CatVariants_Genotype');
-    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf$/ } @{$file_stack};
-    my @recal_file  = grep { $_ =~ /_snp_recal$/ } @{$file_stack};
-    my @tranch_file = grep { $_ =~ /_snp_tranches$/ } @{$file_stack};
+    my $files         = $self->file_retrieve('CatVariants_Genotype');
+    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf$/ } @{$files};
+    my @recal_file  = grep { $_ =~ /_snp_recal$/ } @{$files};
+    my @tranch_file = grep { $_ =~ /_snp_tranches$/ } @{$files};
+
+    unless ( @genotpd && @recal_file && @tranch_file ) {
+        $self->ERROR("Needed files not found!");
+    }
 
     # need to add a copy because it here.
     ( my $output = $genotpd[0] ) =~ s/_genotyped.vcf$/_recal_SNP.vcf/g;
@@ -423,10 +427,14 @@ sub ApplyRecalibration_INDEL {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('ApplyRecalibration_INDEL');
 
-    my $file_stack  = $self->file_retrieve('CatVariants_Genotype');
-    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf$/ } @{$file_stack};
-    my @recal_file  = grep { $_ =~ /_indel_recal$/ } @{$file_stack};
-    my @tranch_file = grep { $_ =~ /_indel_tranches$/ } @{$file_stack};
+    my $files  = $self->file_retrieve('CatVariants_Genotype');
+    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf$/ } @{$files};
+    my @recal_file  = grep { $_ =~ /_indel_recal$/ } @{$files};
+    my @tranch_file = grep { $_ =~ /_indel_tranches$/ } @{$files};
+
+    unless ( @genotpd && @recal_file && @tranch_file ) {
+        $self->ERROR("Needed files not found!");
+    }
 
     # need to add a copy because it here.
     ( my $output = $genotpd[0] ) =~ s/_genotyped.vcf$/_recal_INDEL.vcf/g;
