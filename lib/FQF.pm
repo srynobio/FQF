@@ -22,6 +22,7 @@ with qw|
   featureCounts
   snpeff
   multiqc
+  qualimap
   |;
 
 ##-----------------------------------------------------------

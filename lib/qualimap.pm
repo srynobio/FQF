@@ -1,4 +1,4 @@
-package featureCounts;
+package qualimap;
 use Moo::Role;
 
 ##-----------------------------------------------------------
@@ -9,17 +9,14 @@ use Moo::Role;
 ##------------------------ METHODS --------------------------
 ##-----------------------------------------------------------
 
-sub featureCounts_run {
+sub qualimap_run {
     my $self = shift;
     $self->pull;
 
     my $config = $self->class_config;
-    my $opts   = $self->tool_options('featureCounts_run');
+    my $opts   = $self->tool_options('qualimap_run');
     my $bams   = $self->file_retrieve;
-
-    ## remove old file if found.
-    my @found = grep { $_ =~ /(fcounts|fcounts.summary)/ } @{$bams};
-    unlink @found if @found;
+    my $output = $self->output;
 
     my @cmds;
     foreach my $file ( @{$bams} ) {
@@ -28,11 +25,13 @@ sub featureCounts_run {
         next if ( $file =~ /(DNA|theVoid)/ );
 
         ( my $indiv = $file ) =~ s/\.bam//;
-        my $output = "$indiv.fcounts";
-        $self->file_store($output);
+        my $oc = $output . "$indiv.qualimap.coverage.txt";
 
-        my $cmd = sprintf( "featureCounts -a %s -g gene_name -o %s -t exon %s",
-            $opts->{gtf_file}, $output, $file );
+        my $cmd = sprintf( 
+            "qualimap bamqc -bam %s -c -gff %s -oc %s "
+            ."-outdir %s -outformat PDF:HTML",
+            $file, $opts->{gtf_file}, $oc, $output
+        );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
