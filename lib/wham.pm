@@ -89,7 +89,7 @@ sub wham_bgzip {
     my @cmds;
     foreach my $vcf ( @{$typer_file} ) {
         chomp $vcf;
-        next unless ( $vcf =~ /genotype.wham.vcf/ );
+        next unless ( $vcf =~ /unfiltered.genotype.wham.vcf/ );
 
         my $output_file = $vcf . '.gz';
         $self->file_store($output_file);
@@ -113,6 +113,7 @@ sub wham_tabix {
     my @cmds;
     foreach my $bg ( @{$bgziped_file} ) {
         chomp $bg;
+        next unless ( $bg =~ /unfiltered.genotype.wham.vcf.gz/ );
 
         ## dup step need different path to software.
         my $cmd = sprintf( "tabix -p vcf %s", $bg );
