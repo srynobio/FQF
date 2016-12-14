@@ -283,8 +283,13 @@ sub deploy {
               "Salvo -cf %s -m idle "
               . "-r %s -ec lonepeak -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
             $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit,
-            $min_memory );
+            $min_memory 
+        );
     }
+
+    open(my $OUT, 'FQFsalvoCommands.txt');
+    say $OUT $salvoCmd;
+    close $OUT;
 
     my $run = `$salvoCmd`;
     $self->LOG( 'progress', $sub[0] );

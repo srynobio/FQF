@@ -1,0 +1,114 @@
+#!/usr/bin/env perl
+# ReGenotyper
+use strict;
+use warnings;
+use feature 'say';
+use autodie;
+use Cwd 'abs_path';
+use File::Copy "cp";
+use Getopt::Long;
+
+my $usage = << "EOU";
+
+Synopsis:
+    ./ReGenotyper --project <STRING> --background <STRING>
+
+Description:
+
+    Will locate g.vcf files for a given project and build config, shell and links for regenotyping.
+
+Required options:
+
+    --project, -p       ucgd project name
+
+Additional options:
+    
+    --background, -b    Which backgrounds to use to generate new joint-genotyped file.
+                        Current options: longevity or 1000G (default) 
+                            
+    --help, -h              Print this usage statement.
+
+EOU
+
+my %opts = ();
+GetOptions( 
+    \%opts, 
+    "project|p=s", 
+    "background|b=s", 
+    "help|h", 
+);
+die $usage if $opts{help};
+die $usage unless ( $opts{project} );
+
+## get background or default;
+my $background = $opts{background} // '1000G';
+if ( $background =~ /longevity/i ) {
+    $background = '/scratch/ucgd/lustre/ugpuser/ucgd_data/Backgrounds';
+}
+else {
+    $background = '/scratch/ucgd/lustre/ugpuser/ucgd_data/1000G_Backgrounds';
+}
+
+my $project = $opts{project};
+my $result =
+`find /scratch/ucgd/lustre/ugpuser/Repository/AnalysisData/ -type d -name \"$project\"`;
+chomp $result;
+my $gvcf_path = $result . '/UGP/VCF/GVCFs';
+
+mkdir $project;
+my $full_path = abs_path($project);
+`ln -s $gvcf_path/*g.vcf $full_path`;
+
+my $epoch  = time;
+my $fqf_id = 'FQF-1.2.1_' . $project . '_Longevity_' . $epoch;
+
+my $config_path = '/uufs/chpc.utah.edu/common/home/u0413537/Heimdall/configs';
+opendir( my $CFG, $config_path );
+foreach my $c_file ( readdir $CFG ) {
+    next if ( $c_file !~ /cfg$/ );
+    cp( "$config_path/$c_file", $full_path );
+
+    my $data_cmd =
+      sprintf("perl -p -i -e 's|^data:|data:$full_path|' $full_path/$c_file");
+    my $fqf_cmd =
+      sprintf("perl -p -i -e 's|^fqf_id:|fqf_id:$fqf_id|' $full_path/$c_file");
+    my $back_cmd = sprintf(
+        "perl -p -i -e 's|^backgrounds:|backgrounds:$background|' $full_path/$c_file"
+    );
+    my $region_cmd = sprintf(
+        "perl -p -i -e 's|^region:|region:/scratch/ucgd/lustre/ugpuser/ucgd_data/Regions/FQF.Region.bed|' $full_path/$c_file"
+    );
+
+    # run commands.
+    `$data_cmd`;
+    `$fqf_cmd`;
+    `$back_cmd`;
+    `$region_cmd`;
+}
+
+my $shell = <<"EOM";
+#!/bin/bash
+
+module load ucgd_modules
+
+cd $full_path
+
+## Genotype
+FQF -cfg FQF.Genotype.cfg -ql 50 --run
+
+## qc
+FQF -cfg FQF.QC.cfg -ql 50 --run &
+FQF -cfg FQF.WHAM.cfg -ql 50 --run &
+
+wait
+
+echo "$project done processing"
+
+EOM
+
+my $bash_file = "$full_path/$project.sh";
+open( my $OUT, '>', $bash_file );
+
+say $OUT $shell;
+close $OUT;
+
