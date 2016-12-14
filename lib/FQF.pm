@@ -287,10 +287,7 @@ sub deploy {
         );
     }
 
-    open(my $OUT, 'FQFsalvoCommands.txt');
-    say $OUT $salvoCmd;
-    close $OUT;
-
+    say "Salvo command: $salvoCmd";
     my $run = `$salvoCmd`;
     $self->LOG( 'progress', $sub[0] );
     return;
