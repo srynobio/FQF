@@ -73,22 +73,24 @@ sub SelectVariants {
     foreach my $vcf (@gvcfs) {
         chomp $vcf;
 
+        ## skip if chr file i.e. restart processing.
         my $f_parts = $self->file_frags($vcf);
-        my $found   = $self->file_exist( $f_parts->{name} );
+        next if ($f_parts->{name} =~ /^chr/);
 
-        if ($found) {
-            $self->file_store( @{$found} );
-            next;
-        }
-
-        my $output = $self->output;
         foreach my $region ( @{ $self->intervals } ) {
             my @parts = split /\//, $region;
             my ( $chr, undef ) = split /_/, $parts[-1];
 
             my $filename = "$chr\_" . $f_parts->{name};
+            
+            ## check if chr file exist already.
+            my $found    = $self->file_exist($filename);
+            if ($found) {
+                $self->file_store( @{$found} );
+                next;
+            }
 
-            my $chrdir = $output . "$chr/";
+            my $chrdir = $self->output . "$chr/";
             make_path($chrdir);
             my $final_output = $chrdir . $filename;
             $self->file_store($final_output);
