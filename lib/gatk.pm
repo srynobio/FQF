@@ -74,19 +74,19 @@ sub SelectVariants {
         chomp $vcf;
 
         my $f_parts = $self->file_frags($vcf);
-        my $output  = $self->output;
+        my $found   = $self->file_exist( $f_parts->{name} );
 
+        if ($found) {
+            $self->file_store( @{$found} );
+            next;
+        }
+
+        my $output = $self->output;
         foreach my $region ( @{ $self->intervals } ) {
             my @parts = split /\//, $region;
             my ( $chr, undef ) = split /_/, $parts[-1];
 
             my $filename = "$chr\_" . $f_parts->{name};
-
-            my $found = $self->file_exist($filename);
-            if ($found) {
-                $self->file_store( @{$found} );
-                next;
-            }
 
             my $chrdir = $output . "$chr/";
             make_path($chrdir);
@@ -394,7 +394,7 @@ sub ApplyRecalibration_SNP {
     my @tranch_file = grep { $_ =~ /_snp_tranches$/ } @{$files};
 
     unless ( @genotpd && @recal_file && @tranch_file ) {
-        $self->ERROR("Needed files not found!");
+        $self->ERROR("Needed ApplyRecalibration files not found!");
     }
 
     # need to add a copy because it here.
@@ -433,7 +433,7 @@ sub ApplyRecalibration_INDEL {
     my @tranch_file = grep { $_ =~ /_indel_tranches$/ } @{$files};
 
     unless ( @genotpd && @recal_file && @tranch_file ) {
-        $self->ERROR("Needed files not found!");
+        $self->ERROR("Needed ApplyRecalibration files not found!");
     }
 
     # need to add a copy because it here.
