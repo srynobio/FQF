@@ -48,72 +48,64 @@ GetOptions(
 die $usage if $c_opts{help};
 die $usage unless ($c_opts{run});
 
-## --------------------
-## collect unneeded files.
-my @remove_types = (
-    "_cat_genotyped.vcf.idx",
-    "_cat_recal_INDEL.vcf.idx",
-    "_cat_recal_SNP.vcf.idx",
-    "_indel_recal.idx",
-    "_snp_recal.idx",
-    "chr_",
-    "combined",
-    "genotyped",
-    "file.list",
-    "theVoid",
-    "cat_recal",
-    "_indel_tranches",
-    "tranches\$",
-    "_indel_recal",
-    "_snp_recal",
-    "_plots.R",
-    "cfg",
-    "PROGRESS",
-    "WARN.txt",
-    "FATAL.txt",
-    "wham.vcf.log",
-    "fastq\$",
-    "unfiltered.genotype.wham.vcf\$",
-    "unfiltered.genotype.wham.vcf.log\$",
-);
-
 my $dir = getcwd;
-my @to_rm;
-my @dir_check;
+my (@gvcfs, @bams, @finalVCF, @logFiles, @reports, @trashCan, @snpeff, @flagstat, @fcounts, @stats);
 finddepth(
     sub {
+        no warnings;
         return if ( $_ eq '.' || $_ eq '..' );
-        foreach my $type (@remove_types) {
-            if ( $_ =~ /$type/ ) {
-                push @to_rm, abs_path($_);
-                next;
-            }
-            if ( -d $_ ) {
-                push @dir_check, abs_path($_);
-                next;
-            }
-            if ( -l $_ ) {
-                say "removing link $_";
-                unlink $_;
-                next;
-            }
+        my $file = $_;
+
+        if (-l $file) {
+            push @trashCan, $file;
+            next;
         }
+        if ( $file =~ /^chr/ ) {
+            push @trashCan, abs_path($file);
+            next;
+        }
+        if ( $file =~ /(csv$|genes|snpEff_summary.html|ann)/ ) {
+            push @snpeff, abs_path($file);
+            next;
+        }
+        if ( $file =~ /flagstat/ ) {
+            push @flagstat, abs_path($file);
+            next;
+        }
+        if ( $file =~ /fcounts/ ) {
+            push @fcounts, abs_path($file);
+            next;
+        }
+        if ( $file =~ /stats/ ) {
+            push @stats, abs_path($file);
+            next;
+        }
+        if ( $file =~ /(g.vcf$|g.vcf.idx$)/ ) {
+            push @gvcfs, abs_path($file);
+            next;
+        }
+        if ( $file =~ /(bam$|bam.bai$)/) {
+            push @bams, abs_path($file);
+            next;
+        }
+        if ( $file =~ /(FQF-.*vcf.gz$|FQF-.*vcf.gz.tbi$)/ ) {
+            push @finalVCF, abs_path($file);
+            next;
+        }
+        if ( $file =~ /(FQF_Pipeline.*-log.txt)/ ) {
+            push @logFiles, abs_path($file);
+            next;
+        }
+        if ( $file =~ /(pdf|multiqc)/ ) {
+            push @reports, abs_path($file);
+            next;
+        }
+        else {
+            push @trashCan, abs_path($file);
+        } 
     },
     $dir
 );
-
-## now remove files and directories.
-say "Moving removable to trashdir...";
-mkdir "trashdir" unless (-e 'trashdir');
-foreach my $trash (@to_rm) {
-    if ( -f $trash ) {
-        move($trash, 'trashdir');
-    }
-}
-
-## remove empty dirs.
-map { remove_empty_dirs($_) } @dir_check;
-
 
 ## ----------------------------
 ## create the needed directories
@@ -125,123 +117,64 @@ make_path(
     'Reports/flagstat',      'Reports/stats',
     'Reports/featureCounts', 'Reports/SnpEff',
     'VCF/Complete',          'VCF/GVCFs',
-    'VCF/WHAM',
+    'VCF/WHAM', 
+    'trashcan'
 );
 
-## list of all the file types to collect.
-## maintain order
-my @kept_file_types = (
-    "fastq.gz",
-    "_DNA-",
-    "bam\$",
-    "bam.bai\$",
-    "fastqc",
-    "flagstat",
-    "stats",
-    "ann",
-    "fcounts",
-    "wham",
-    "g.vcf",
-    "-log.txt",
-    "FQF-.*gz",
-    "FQF-.*idx",
-    "FQF-.*tbi",
-    "snpEff_summary.html",
-    "multiqc.report.html",
-    "pdf",
-    "csv",
-    "genes.txt",
-);
+## Move the collections into correct directory.
+say "Moving data into correct directory structure...";
+map { move( $_, 'VCF/GVCFs') } @gvcfs;
+map { move( $_, 'Data/PolishedBams') } @bams;
+map { move( $_, 'VCF/Complete') } @finalVCF;
+map { move( $_, 'Reports/RunLogs') } @logFiles;
+map { move( $_, 'Reports') } @reports;
+map { move( $_, 'trashcan') } @trashCan;
+map { move( $_, 'Reports/SnpEff') } @snpeff;
+map { move( $_, 'Reports/flagstat') } @flagstat;
+map { move( $_, 'Reports/featureCounts') } @fcounts;
+map { move( $_, 'Reports/stats') } @stats;
 
-## find each type and move.
-my %type_match;
-say "Moving file types into correct directories...";
-finddepth(
-    sub {
-        return if ( $_ eq '.' || $_ eq '..' );
-        foreach my $type (@kept_file_types) {
-            if ( $_ =~ /$type/ ) {
-                push @{$type_match{$type}}, abs_path($_);
-            }
-        }
-    },
-    $dir
-);
+## clean up empty directories.
+say "Cleaning up empty directories...";
+remove_empty_dirs($dir);
 
-## move kept file to correct location.
-foreach my $found (keys %type_match) {
-    location_mv($found, $type_match{$found});
-}
 say "Finished!";
 
 ## ----------------------------------------------------- ##
 
 sub remove_empty_dirs {
     my $dir = shift;
-    return if (! -e $dir );
 
-    opendir( my $DIR, $dir ) or warn "Could not open directory $dir";
+    opendir( my $DIR, $dir ) or warn "Could not open abs_directory $dir";
 
-    my $file_count;
+    finddepth( sub {
+        next if ( $_ eq '.' || $_ eq '..' );
+        
+       my $oio; 
+        
+        
+        }, );
+
+
+
+
+
+
+
+    my $count;
     foreach my $file ( readdir $DIR ) {
         next if ( $file eq '.' || $file eq '..' );
-        $file_count++;
-        if ( -d $file ) {
-            remove_empty_dirs( abs_path($file) );
+        $count++;
+        my $abs_file = abs_path($file);
+        if ( -d $abs_file ) {
+
+            my $klklk;
+            remove_empty_dirs($abs_file);
         }
     }
-    if ( !$file_count ) {
+    if ( !$count ) {
+        say "remove abs_dir: $dir";
         rmdir $dir;
-    }
-}
-
-## ----------------------------------------------------- ##
-
-sub location_mv {
-    my ($type, $to_mv) = @_;
-    my @to_mv = @{$to_mv};
-
-    ## maintain order
-    switch ($type) {
-        case /(genes.txt|csv|ann|snpEff_summary.html)/ {
-            map { move( $_, 'Reports/SnpEff') } @to_mv;
-        }
-        case /-log.txt/ {
-            map { move( $_, 'Reports/RunLogs' ) } @to_mv;
-        }
-        case /fcounts/ {
-            map { move( $_, 'Reports/featureCounts' ) } @to_mv;
-        }
-        case /fastq.gz/ {
-            map { move( $_, 'Data/Primary_Data' ) } @to_mv;
-        }
-        case /DNA/ {
-            map { move( $_, 'Data/Primary_Data' ) } @to_mv;
-        }
-        case /bam/ {
-            map { move( $_, 'Data/PolishedBams' ) } @to_mv;
-        }
-        case /flagstat$/ {
-            map { move( $_, 'Reports/flagstat' ) } @to_mv;
-        }
-        case /stats$/ {
-            map { move( $_, 'Reports/stats' ) } @to_mv;
-        }
-        case /g.vcf/ {
-            map { move( $_, 'VCF/GVCFs' ) } @to_mv;
-        }
-        case /fastqc/ {
-            map { move( $_, 'Reports/fastqc' ) } @to_mv;
-        }
-        case /(FQF-.*tbi|FQF-.*gz|FQF-.*idx)/ {
-            map { move( $_, 'VCF/Complete' ) } @to_mv;
-        }
-        case /(pdf|multiqc.report.html)/ {
-            map { move( $_, 'Reports/' ) } @to_mv;
-        }
-        case /wham/ {
-            map { move( $_, 'VCF/WHAM' ) } @to_mv;
-        }
     }
 }
 

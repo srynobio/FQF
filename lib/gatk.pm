@@ -60,6 +60,36 @@ sub _build_intervals {
 
 ##-----------------------------------------------------------
 
+sub gvcf_zip_tabix {
+    my $self = shift;
+    $self->pull;
+
+    my $config = $self->class_config;
+    my $opts   = $self->tool_options('gvcf_bgzip');
+
+    my $combine_file = $self->file_retrieve;
+    my @gvcfs = grep { $_ =~ /g.vcf$/ } @{$combine_file};
+
+    my @cmds;
+    foreach my $gvcf (@gvcfs) {
+        chomp $gvcf;
+        my $output = $gvcf . ".gz";
+
+        $self->file_store($output);
+
+        my $cmd = sprintf( "bgzip -c %s > %s ; tabix -p vcf %s",
+            $combine_file->[0], $output, $output );
+        push @cmds, $cmd;
+    }
+
+    if ( !@cmds ) {
+        $self->ERROR("gvcf_bgzip and tabix file could not be created.");
+    }
+    $self->bundle( \@cmds );
+}
+
+##-----------------------------------------------------------
+
 sub SelectVariants {
     my $self = shift;
     $self->pull;
@@ -67,7 +97,7 @@ sub SelectVariants {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('SelectVariants');
     my $fqf    = $self->file_retrieve('bam2gvcf');
-    my @gvcfs  = grep { /g.vcf$/ } @{$fqf};
+    my @gvcfs  = grep { /g.vcf.gz$/ } @{$fqf};
 
     my @cmds;
     foreach my $vcf (@gvcfs) {
@@ -81,7 +111,7 @@ sub SelectVariants {
             my @parts = split /\//, $region;
             my ( $chr, undef ) = split /_/, $parts[-1];
 
-            my $filename = "$chr\_" . $f_parts->{name};
+            my $filename = "$chr\_" . $f_parts->{name} . ".gz";
             
             ## check if chr file exist already.
             my $found    = $self->file_exist($filename);
@@ -119,7 +149,7 @@ sub CombineGVCF {
     my $output = $self->output;
 
     my $gvcf = $self->file_retrieve('SelectVariants');
-    my @iso = grep { /chr(\d{1,2}|MT|X|Y).*\.g.vcf$/ } @{$gvcf};
+    my @iso = grep { /chr(\d{1,2}|MT|X|Y).*\.g.vcf.gz$/ } @{$gvcf};
 
     ## will make chr based groupings.
     my %chr_groups;
@@ -206,10 +236,10 @@ sub GenotypeGVCF {
         my $input = join( " --variant ", @{ $grouped{$chrom} } );
         my @region = grep { $_ =~ /$chrom\_/ } @{$intv};
 
-        my $final_output = $output . $chrom . '_genotyped.vcf';
+        my $final_output = $output . $chrom . '_genotyped.vcf.gz';
 
         ## look for existing genotyped files.
-        my @found = $self->file_exist( $chrom . '_genotyped.vcf' );
+        my @found = $self->file_exist( $chrom . '_genotyped.vcf.gz' );
         if (@found) {
             $self->file_store($final_output);
             next;
@@ -253,7 +283,7 @@ sub CatVariants_Genotype {
 
     my $config = $self->class_config;
     my $vcf    = $self->file_retrieve('GenotypeGVCF');
-    my @iso    = grep { /genotyped.vcf$/ } @{$vcf};
+    my @iso    = grep { /genotyped.vcf.gz$/ } @{$vcf};
     my $output = $self->output;
 
     my %indiv;
@@ -279,10 +309,10 @@ sub CatVariants_Genotype {
     my $variant = join( " -V ", @ordered_list );
     $variant =~ s/^/-V /;
 
-    my $final_output = $output . $config->{fqf_id} . '_cat_genotyped.vcf';
+    my $final_output = $output . $config->{fqf_id} . '_cat_genotyped.vcf.gz';
 
     ## look for pre-ran files.
-    my @found = $self->file_exist($config->{fqf_id} . '_cat_genotyped.vcf');
+    my @found = $self->file_exist($config->{fqf_id} . '_cat_genotyped.vcf.gz');
     if ( @found ) {
         $self->file_store($final_output);
         next;
@@ -306,7 +336,7 @@ sub VariantRecalibrator_SNP {
     my $config  = $self->class_config;
     my $opts    = $self->tool_options('VariantRecalibrator_SNP');
     my $files   = $self->file_retrieve('CatVariants_Genotype');
-    my @genotpd = grep { /_cat_genotyped.vcf$/ } @{$files};
+    my @genotpd = grep { /_cat_genotyped.vcf.gz$/ } @{$files};
     my $output  = $self->output;
 
     my $recalFile   = '-recalFile ' . $output . $config->{fqf_id} . '_snp_recal';
@@ -346,7 +376,7 @@ sub VariantRecalibrator_INDEL {
     my $config  = $self->class_config;
     my $opts    = $self->tool_options('VariantRecalibrator_INDEL');
     my $files   = $self->file_retrieve('CatVariants_Genotype');
-    my @genotpd = grep { /_cat_genotyped.vcf$/ } @{$files};
+    my @genotpd = grep { /_cat_genotyped.vcf.gz$/ } @{$files};
     my $output  = $self->output;
 
     my $recalFile =
@@ -391,7 +421,7 @@ sub ApplyRecalibration_SNP {
     my $opts   = $self->tool_options('ApplyRecalibration_SNP');
 
     my $files         = $self->file_retrieve('CatVariants_Genotype');
-    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf$/ } @{$files};
+    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf.gz$/ } @{$files};
     my @recal_file  = grep { $_ =~ /_snp_recal$/ } @{$files};
     my @tranch_file = grep { $_ =~ /_snp_tranches$/ } @{$files};
 
@@ -400,7 +430,7 @@ sub ApplyRecalibration_SNP {
     }
 
     # need to add a copy because it here.
-    ( my $output = $genotpd[0] ) =~ s/_genotyped.vcf$/_recal_SNP.vcf/g;
+    ( my $output = $genotpd[0] ) =~ s/_genotyped.vcf.gz$/_recal_SNP.vcf.gz/g;
     $self->file_store($output);
 
     my @cmds;
@@ -430,7 +460,7 @@ sub ApplyRecalibration_INDEL {
     my $opts   = $self->tool_options('ApplyRecalibration_INDEL');
 
     my $files  = $self->file_retrieve('CatVariants_Genotype');
-    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf$/ } @{$files};
+    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf.gz$/ } @{$files};
     my @recal_file  = grep { $_ =~ /_indel_recal$/ } @{$files};
     my @tranch_file = grep { $_ =~ /_indel_tranches$/ } @{$files};
 
@@ -439,7 +469,7 @@ sub ApplyRecalibration_INDEL {
     }
 
     # need to add a copy because it here.
-    ( my $output = $genotpd[0] ) =~ s/_genotyped.vcf$/_recal_INDEL.vcf/g;
+    ( my $output = $genotpd[0] ) =~ s/_genotyped.vcf.gz$/_recal_INDEL.vcf.gz/g;
     $self->file_store($output);
 
     my @cmds;
@@ -469,15 +499,15 @@ sub CombineVariants {
     my $opts   = $self->tool_options('CombineVariants');
 
     my $snp_files = $self->file_retrieve('ApplyRecalibration_SNP');
-    my @recal_snp = grep { $_ =~ /_cat_recal_SNP.vcf$/ } @{$snp_files};
+    my @recal_snp = grep { $_ =~ /_cat_recal_SNP.vcf.gz$/ } @{$snp_files};
 
     my $indel_files = $self->file_retrieve('ApplyRecalibration_INDEL');
-    my @recal_indel = grep { $_ =~ /_cat_recal_INDEL.vcf$/ } @{$indel_files};
+    my @recal_indel = grep { $_ =~ /_cat_recal_INDEL.vcf.gz$/ } @{$indel_files};
 
     my @app_snp = map { "--variant $_ " } @recal_snp;
     my @app_ind = map { "--variant $_ " } @recal_indel;
 
-    my $output = $config->{fqf_id} . ".vcf";
+    my $output = $config->{fqf_id} . ".vcf.gz";
     $self->file_store($output);
 
     my @cmds;
@@ -494,6 +524,29 @@ sub CombineVariants {
     );
     push @cmds, $cmd;
     $self->bundle( \@cmds );
+}
+
+##-----------------------------------------------------------
+
+sub final_tabix {
+    my $self = shift;
+    $self->pull;
+
+    my $config = $self->class_config;
+    my $opts   = $self->tool_options('final_zip_tabix');
+
+    my $combine_file = $self->file_retrieve('CombineVariants');
+    my $output       = $combine_file->[0];
+
+    $self->file_store($output);
+
+    my $cmd =
+      sprintf( "tabix -p vcf %s", $combine_file->[0], $output, $output );
+
+    if ( !$cmd ) {
+        $self->ERROR("Could not created final_zip_tabix file.");
+    }
+    $self->bundle( \$cmd );
 }
 
 ##-----------------------------------------------------------

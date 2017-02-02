@@ -65,7 +65,7 @@ my $fqf_id = 'FQF-1.2.1_' . $project . '_Longevity_' . $epoch;
 my $config_path = '/uufs/chpc.utah.edu/common/home/u0413537/Heimdall/configs';
 opendir( my $CFG, $config_path );
 foreach my $c_file ( readdir $CFG ) {
-    next if ( $c_file !~ /cfg$/ );
+    next if ( $c_file !~ /FQF.Genotype.cfg/ );
     cp( "$config_path/$c_file", $full_path );
 
     my $data_cmd =
@@ -96,9 +96,7 @@ cd $full_path
 ## Genotype
 FQF -cfg FQF.Genotype.cfg -ql 50 --run
 
-## qc
-FQF -cfg FQF.QC.cfg -ql 50 --run &
-FQF -cfg FQF.WHAM.cfg -ql 50 --run &
+TrelloTalk -project $project -list data_process_active -action regenotype_complete
 
 wait
 

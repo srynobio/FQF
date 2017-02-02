@@ -26,7 +26,7 @@ Required options:
 
     -project, -p        The UGP database/UGP-GNomEx Project id.
 
-    -action, -a         Which API call you would like to do.
+    -action, -a         Which API call you would like to make.
 
 Additional options:
 
@@ -89,7 +89,7 @@ else { $list = $trello_lists{data_process_active} }
 ## allways get card of requred project.
 my $rh = get_card_hash( $list, $talk_opts{project} );
 if (! $rh) {
-    say "Your project and list pair return no result.";
+    say "Your project and list pair return no results.";
     exit(1);
 }
 
@@ -215,6 +215,7 @@ sub list_current_actions {
     say "qc_complete";
     say "vcf_complete";
     say "wham_complete";
+    say "regenotype_complete";
     say "-----------------------------------\n";
 }
 
