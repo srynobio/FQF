@@ -27,7 +27,6 @@ sub fastqc_run {
     foreach my $file ( @{$gz} ) {
         chomp $file;
         next unless ( $file =~ /fastq.gz$/ );
-        #next unless ( $file =~ /(fastq$|fastq.gz$|fq.gz$|fq$)/ );
         $self->file_store($file);
 
         my $cmd = sprintf( "fastqc --threads %s -o %s -f fastq %s",

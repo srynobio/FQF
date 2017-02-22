@@ -32,9 +32,11 @@ sub snpeff_run {
         my $csv_file = "$indiv.csv";
 
         my $cmd =
-          sprintf( "java -jar -Xmx10g %s/snpEff.jar"
+          sprintf( 
+              "java -jar -Xmx10g %s/snpEff.jar"
               . " GRCh37.75 -csvStats %s %s > %s",
-            $config->{snpeff}, $csv_file, $file, $ann_file );
+            $config->{snpeff}, $csv_file, $file, $ann_file 
+        );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );

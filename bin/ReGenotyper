@@ -96,6 +96,8 @@ cd $full_path
 ## Genotype
 FQF -cfg FQF.Genotype.cfg -ql 50 --run
 
+read -p "Genotyping done, press [Enter] after review to continue..."
+
 TrelloTalk -project $project -list data_process_active -action regenotype_complete
 
 wait

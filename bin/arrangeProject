@@ -49,11 +49,12 @@ die $usage if $c_opts{help};
 die $usage unless ($c_opts{run});
 
 my $dir = getcwd;
-my (@gvcfs, @bams, @finalVCF, @logFiles, @reports, @trashCan, @snpeff, @flagstat, @fcounts, @stats);
+my (@gvcfs, @bams, @finalVCF, @logFiles, @reports, @trashCan, @snpeff, @flagstat, @fcounts, @stats, @wham, @fastqc);
 finddepth(
     sub {
         no warnings;
-        return if ( $_ eq '.' || $_ eq '..' );
+        next if ( $_ eq '.' || $_ eq '..' );
+        #return if ( $_ eq '.' || $_ eq '..' );
         my $file = $_;
 
         if (-l $file) {
@@ -64,7 +65,7 @@ finddepth(
             push @trashCan, abs_path($file);
             next;
         }
-        if ( $file =~ /(csv$|genes|snpEff_summary.html|ann)/ ) {
+        if ( $file =~ /(csv$|genes|snpEff_summary.html|ann.vcf)/ ) {
             push @snpeff, abs_path($file);
             next;
         }
@@ -80,7 +81,11 @@ finddepth(
             push @stats, abs_path($file);
             next;
         }
-        if ( $file =~ /(g.vcf$|g.vcf.idx$)/ ) {
+        if ( $file =~ /fastqc/ ) {
+            push @fastqc, abs_path($file);
+            next;
+        }
+        if ( $file =~ /(g.vcf$|g.vcf.gz)/ ) {
             push @gvcfs, abs_path($file);
             next;
         }
@@ -98,6 +103,10 @@ finddepth(
         }
         if ( $file =~ /(pdf|multiqc)/ ) {
             push @reports, abs_path($file);
+            next;
+        }
+        if ( $file =~ /(wham.vcf.gz|wham.vcf.gz.tbi)/ ) {
+            push @wham, abs_path($file);
             next;
         }
         else {
@@ -133,11 +142,14 @@ map { move( $_, 'Reports/SnpEff') } @snpeff;
 map { move( $_, 'Reports/flagstat') } @flagstat;
 map { move( $_, 'Reports/featureCounts') } @fcounts;
 map { move( $_, 'Reports/stats') } @stats;
+map { move( $_, 'Reports/fastqc') } @fastqc;
+map { move( $_, 'VCF/WHAM') } @wham;
 
 ## clean up empty directories.
 say "Cleaning up empty directories...";
 remove_empty_dirs($dir);
 
+say "Review trashCan directory, then remove.";
 say "Finished!";
 
 ## ----------------------------------------------------- ##
@@ -145,38 +157,57 @@ say "Finished!";
 sub remove_empty_dirs {
     my $dir = shift;
 
+    ## list of directories to skip.
+    my %keepers = (
+        Analysis => 1,
+        Data => 1,
+        VCF => 1,
+        WHAM => 1,
+        Complete => 1,
+        GVCFs => 1,
+        WHAM => 1,
+        PolishedBams => 1,
+        Primary_Data => 1,
+        Reports => 1,
+        RunLogs => 1,
+        SnpEff => 1,
+        featureCounts => 1,
+        fastqc => 1,
+        flagstat => 1,
+        stats => 1,
+    );
+
     opendir( my $DIR, $dir ) or warn "Could not open abs_directory $dir";
-
     finddepth( sub {
-        next if ( $_ eq '.' || $_ eq '..' );
-        
-       my $oio; 
-        
-        
-        }, );
+            no warnings;
+            next if ( $_ eq '.' || $_ eq '..' );
+            next if ( $keepers{$_} );
+            next unless ( -d $_ );
 
-
-
-
-
-
-
-    my $count;
-    foreach my $file ( readdir $DIR ) {
-        next if ( $file eq '.' || $file eq '..' );
-        $count++;
-        my $abs_file = abs_path($file);
-        if ( -d $abs_file ) {
-
-            my $klklk;
-            remove_empty_dirs($abs_file);
-        }
-    }
-    if ( !$count ) {
-        say "remove abs_dir: $dir";
-        rmdir $dir;
-    }
+            my $full_dir = $File::Find::name;
+            if ( findEmptyDir($full_dir) ) {
+                rmdir $full_dir;
+            }
+        }, $dir
+    );
 }
 
 ## ----------------------------------------------------- ##
+
+sub findEmptyDir {
+    my $dir = shift;
+    opendir(my $DIR, $dir) or die "Can't open dir $dir";
+
+    my $file;
+    my $data;
+    while ( $file = readdir $DIR ) {
+        next if ( $file eq '.' || $file eq '..' );
+        $data++;
+    }
+    closedir $DIR;
+    ($data) ? (return 0) : (return 1);
+}
+
+## ----------------------------------------------------- ##
+
 

@@ -27,9 +27,10 @@ sub qualimap_run {
         ( my $indiv = $file ) =~ s/\.bam//;
         my $oc = $output . "$indiv.qualimap.coverage.txt";
 
-        my $cmd = sprintf( 
-            "qualimap bamqc -bam %s -c -gff %s -oc %s "
-            ."-outdir %s -outformat PDF:HTML",
+        my $cmd =
+          sprintf( 
+              "qualimap bamqc -bam %s -c -gff %s -oc %s "
+              . "-outdir %s -outformat PDF:HTML",
             $file, $opts->{gtf_file}, $oc, $output
         );
         push @cmds, $cmd;

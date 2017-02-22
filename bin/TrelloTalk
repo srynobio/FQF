@@ -216,6 +216,7 @@ sub list_current_actions {
     say "vcf_complete";
     say "wham_complete";
     say "regenotype_complete";
+    say "rsync to UGP-GNomEx";
     say "-----------------------------------\n";
 }
 

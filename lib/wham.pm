@@ -108,28 +108,6 @@ sub wham_zip_tabix {
 
 ##-----------------------------------------------------------
 
-sub wham_tabix {
-    my $self = shift;
-    $self->pull;
-
-    my $config       = $self->class_config;
-    my $opts         = $self->tool_options('tabix');
-    my $bgziped_file = $self->file_retrieve('wham_bgzip');
-
-    my @cmds;
-    foreach my $bg ( @{$bgziped_file} ) {
-        chomp $bg;
-        next unless ( $bg =~ /unfiltered.genotype.wham.vcf.gz/ );
-
-        ## dup step need different path to software.
-        my $cmd = sprintf( "tabix -p vcf %s", $bg );
-        push @cmds, $cmd;
-    }
-    $self->bundle( \@cmds );
-}
-
-##-----------------------------------------------------------
-
 1;
 
 __DATA__

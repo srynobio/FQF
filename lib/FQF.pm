@@ -16,8 +16,6 @@ with qw|
   fastqc
   samtools
   gatk
-  igv
-  tabix
   wham
   featureCounts
   snpeff
@@ -273,7 +271,7 @@ sub deploy {
     if ( $node eq 'dedicated' ) {
         $salvoCmd = sprintf(
             "Salvo -cf %s -a ucgd-kp -p ucgd-kp -c kingspeak -m dedicated "
-              . "-r %s -ec lonepeak -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
+              . "-r %s -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
             $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit,
             $min_memory );
     }
@@ -281,7 +279,7 @@ sub deploy {
         $salvoCmd =
           sprintf( 
               "Salvo -cf %s -m idle "
-              . "-r %s -ec lonepeak -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
+              . "-r %s -j %s -jps %s -nps %s -ql %s -mm %d -concurrent -hyperthread",
             $exeFile, $runtime, $sub[0], $jps, $nps, $self->qstat_limit,
             $min_memory 
         );

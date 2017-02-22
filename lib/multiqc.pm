@@ -19,9 +19,10 @@ sub multiqc_run {
     my $work_dir    = '.';
     my $output_file = $config->{fqf_id} . ".multiqc.report";
 
-    my $cmd = sprintf( "multiqc %s --force --no-data-dir --filename %s",
-        $work_dir, $output_file );
-
+    my $cmd = sprintf(
+        "multiqc %s --force --no-data-dir --filename %s",
+        $work_dir, $output_file
+    );
     $self->bundle( \$cmd );
     return;
 }

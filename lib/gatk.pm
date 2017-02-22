@@ -73,17 +73,23 @@ sub gvcf_zip_tabix {
     my @cmds;
     foreach my $gvcf (@gvcfs) {
         chomp $gvcf;
-        my $output = $gvcf . ".gz";
+        my $gz_output    = $gvcf . ".gz";
+        my $tabix_output = "$gz_output.tbi";
 
-        $self->file_store($output);
+        ## check if chr file exist already.
+        my $gz_found  = $self->file_exist($gz_output);
+        my $tbx_found = $self->file_exist($tabix_output);
+        if ( $gz_found and $tbx_found ) {
+            $self->file_store( @{$gz_found} );
+            $self->file_store( @{$tbx_found} );
+            next;
+        }
+        $self->file_store($gz_output);
+        $self->file_store($tabix_output);
 
         my $cmd = sprintf( "bgzip -c %s > %s ; tabix -p vcf %s",
-            $combine_file->[0], $output, $output );
+            $combine_file->[0], $gz_output, $gz_output );
         push @cmds, $cmd;
-    }
-
-    if ( !@cmds ) {
-        $self->ERROR("gvcf_bgzip and tabix file could not be created.");
     }
     $self->bundle( \@cmds );
 }
@@ -111,7 +117,8 @@ sub SelectVariants {
             my @parts = split /\//, $region;
             my ( $chr, undef ) = split /_/, $parts[-1];
 
-            my $filename = "$chr\_" . $f_parts->{name} . ".gz";
+            my $filename = "$chr\_" . $f_parts->{name};
+            ######my $filename = "$chr\_" . $f_parts->{name} . ".gz";
             
             ## check if chr file exist already.
             my $found    = $self->file_exist($filename);
@@ -537,7 +544,6 @@ sub final_tabix {
 
     my $combine_file = $self->file_retrieve('CombineVariants');
     my $output       = $combine_file->[0];
-
     $self->file_store($output);
 
     my $cmd =

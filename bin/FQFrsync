@@ -1,0 +1,89 @@
+#!/usr/bin/env perl
+# FQFrsync
+use strict;
+use warnings;
+use feature 'say';
+use autodie;
+use Getopt::Long;
+use DBI;
+
+my $usage = << "EOU";
+
+Synopsis:
+
+    FQFrsync -project 15-09-24_Nant-Gibson-ALS -data_path /path/to/Process_Data/Project 
+    FQFrsync -project 15-09-24_Nant-Gibson-ALS -data_path /path/to/Process_Data/Project --run
+
+Description:
+
+    Will rsync processed data to GNomEx Repository.
+    ** Must run as ugpuser **
+    ** Recommend running in screen session. **
+
+Required options:
+
+    --project, -p       :   UGP/UCGD project. Must be present in ugp_db database.
+    
+    --data_path, -dd    :   Full path to completed project in Process_Data directory.
+
+Additional options:
+
+    --run, -r           :   Will start the rsync process.  [default rsync dry-run].
+
+    --help, -h          :   Print this usage statement.
+EOU
+
+## exit on help statement
+my %c_opts = ();
+GetOptions( \%c_opts, "project|p=s", "data_path|dd=s", "run|r", "help|h" );
+die $usage if $c_opts{help};
+die $usage unless ( $c_opts{project} and $c_opts{data_path} );
+
+## check who you are...
+if ( $ENV{USER} ne 'ugpuser' ) {
+    say "must run as ugpuser to create UGP Directory structure in Repository ";
+    exit(1);
+}
+
+## make sure data path has /
+if ( $c_opts{data_path} !~ /\/$/ ) {
+    $c_opts{data_path} =~ s|$|/|;
+}
+
+## set up dbi
+my $dbfile =
+'/scratch/ucgd/lustre/ugpuser/apps/kingspeak.peaks/ucgd_utils/trunk/data/UGP_DB.db';
+my $dbh = DBI->connect( "dbi:SQLite:dbname=$dbfile", "", "", {} )
+  or die "Could not connect to ugp_db!";
+
+## statement for project data.
+my $sth = $dbh->prepare(
+"select Gnomex_Data_Path,Gnomex_Year,Gnomex_Analysis_ID,Project from Projects where Project=?"
+);
+$sth->execute( $c_opts{project} );
+
+my $rsync_to;
+while ( my $result = $sth->fetchrow_hashref ) {
+    my $path = $result->{Gnomex_Data_Path};
+    my $id   = $result->{Gnomex_Analysis_ID};
+    my $year = $result->{Gnomex_Year};
+
+    $rsync_to = "$path/$year/$id/$c_opts{project}";
+    #$rsync_to = "$path/$year/$id/$c_opts{project}/UGP";
+}
+
+if ( !$c_opts{run} ) {
+    my $run = "rsync -avzpn $c_opts{data_path} $rsync_to";
+    say "Running rsync command: $run";
+    my $result = `$run`;
+    say $result;
+    say "** Recommend running in screen session. **";
+    say "If correct rerun with --run option added.";
+}
+else {
+    my $run = "rsync -avzp $c_opts{data_path} $rsync_to";
+    say "Running rsync command: $run";
+    my $result = `$run`;
+    say $result;
+}
+
