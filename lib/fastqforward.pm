@@ -307,16 +307,22 @@ sub lossless_valadate {
     my $opts   = $self->tool_options('lossless_valadate');
     my $files  = $self->file_retrieve('fastq2bam');
 
+    my @fqs  = grep { $_ =~ /fastq$/ } @{$files};
+    my @bams = grep { $_ =~ /bam$/ } @{$files};
+
     my @cmds;
-    foreach my $bam ( @{$files} ) {
+    foreach my $bam (@bams) {
         chomp $bam;
 
         next if ( !$bam =~ /bam$/ );
         next if ( $bam  =~ /(DNA|theVoid)/ );
         $bam =~ s/\.bam$//g;
 
+        my $parts = $self->file_frags($bam);
+        my @match_fqs = grep { $_ =~ /$parts->{name}/ } @fqs;
+
         my $cmd = sprintf( "lossless_validator.pl -c %s %s %s %s > %s",
-            $opts->{cpu}, "$bam.bam", "$bam\_*1*.fastq", "$bam\_*2*.fastq",
+            $opts->{cpu}, "$bam.bam", $match_fqs[0], $match_fqs[1],
             "$bam.lossless.result" );
         push @cmds, $cmd;
     }
