@@ -88,7 +88,7 @@ sub gvcf_zip_tabix {
         $self->file_store($tabix_output);
 
         my $cmd = sprintf( "bgzip -c %s > %s ; tabix -p vcf %s",
-            $combine_file->[0], $gz_output, $gz_output );
+            $gvcf, $gz_output, $gz_output );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
@@ -118,7 +118,6 @@ sub SelectVariants {
             my ( $chr, undef ) = split /_/, $parts[-1];
 
             my $filename = "$chr\_" . $f_parts->{name};
-            ######my $filename = "$chr\_" . $f_parts->{name} . ".gz";
             
             ## check if chr file exist already.
             my $found    = $self->file_exist($filename);
