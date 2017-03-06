@@ -289,8 +289,14 @@ sub CatVariants_Genotype {
 
     my $config = $self->class_config;
     my $vcf    = $self->file_retrieve('GenotypeGVCF');
-    my @iso    = grep { /genotyped.vcf.gz$/ } @{$vcf};
-    my $output = $self->output;
+    my @iso    = grep { /chr.*_genotyped.vcf.gz$/ } @{$vcf};
+
+    ## look for pre-ran files.
+    my @found = $self->file_exist( $config->{fqf_id} . '_cat_genotyped.vcf.gz' );
+    if (@found) {
+        $self->file_store( @{ $found[0] } );
+        return;
+    }
 
     my %indiv;
     my $path;
@@ -312,18 +318,12 @@ sub CatVariants_Genotype {
         push @ordered_list, $indiv{$chr}->[0];
     }
 
+    ## create the command for the new file.:w
     my $variant = join( " -V ", @ordered_list );
     $variant =~ s/^/-V /;
 
+    my $output       = $self->output;
     my $final_output = $output . $config->{fqf_id} . '_cat_genotyped.vcf.gz';
-
-    ## look for pre-ran files.
-    my @found = $self->file_exist($config->{fqf_id} . '_cat_genotyped.vcf.gz');
-    if ( @found ) {
-        $self->file_store($final_output);
-        next;
-    }
-    $self->file_store($final_output);
 
     my $cmd = sprintf(
         "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
