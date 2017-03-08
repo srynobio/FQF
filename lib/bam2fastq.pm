@@ -25,8 +25,7 @@ sub bam2fastq {
     my @cmds;
     foreach my $file ( @{$bams} ) {
         chomp $file;
-        next unless ( $file =~ /bam$/ );
-        chomp $file;
+        next unless ( $file =~ /(bam$|fastq$|fq$)/ );
 
         my $output = $self->output;
 
