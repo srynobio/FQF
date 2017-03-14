@@ -60,7 +60,7 @@ sub _build_intervals {
 
 ##-----------------------------------------------------------
 
-sub gvcf_zip_tabix {
+sub gvcf_pbgzip_tabix {
     my $self = shift;
     $self->pull;
 
@@ -87,8 +87,9 @@ sub gvcf_zip_tabix {
         $self->file_store($gz_output);
         $self->file_store($tabix_output);
 
-        my $cmd = sprintf( "bgzip -c %s > %s ; tabix -p vcf %s",
-            $gvcf, $gz_output, $gz_output );
+        my $cmd = sprintf( "pbgzip -p %s %s ; tabix -p vcf %s",
+            $config->{processors}, $gvcf, $gz_output
+        );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );

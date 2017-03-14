@@ -78,7 +78,7 @@ sub whamg_svtyper {
 
 ##-----------------------------------------------------------
 
-sub wham_zip_tabix {
+sub wham_pbgzip_tabix {
     my $self = shift;
     $self->pull;
 
@@ -94,13 +94,13 @@ sub wham_zip_tabix {
         my $output_file = $vcf . '.gz';
         $self->file_store($output_file);
 
-        my $cmd = sprintf( "bgzip -c %s > %s ; tabix -p vcf %s", 
-            $vcf, $output_file, $output_file
+        my $cmd = sprintf( "pbgzip -p %s %s ; tabix -p vcf %s",
+            $config->{processors}, $vcf, $output_file
         );
         push @cmds, $cmd;
     }
-    
-    if (! @cmds ) {
+
+    if ( !@cmds ) {
         $self->ERROR("Could not created wham_zip_tabix files.");
     }
     $self->bundle( \@cmds );
