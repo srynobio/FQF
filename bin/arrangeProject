@@ -54,14 +54,13 @@ finddepth(
     sub {
         no warnings;
         next if ( $_ eq '.' || $_ eq '..' );
-        #return if ( $_ eq '.' || $_ eq '..' );
-        my $file = $_;
 
+        my $file = $_;
         if (-l $file) {
             push @trashCan, $file;
             next;
         }
-        if ( $file =~ /^chr/ ) {
+        if ( $file =~ /(^chr|_cat_)/ ) {
             push @trashCan, abs_path($file);
             next;
         }
