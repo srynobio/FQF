@@ -258,7 +258,8 @@ sub GenotypeGVCF {
             $cmd = sprintf(
                 "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
-                  . "--disable_auto_index_creation_and_locking_when_reading_rods --num_threads %s "
+                  . "--standard_min_confidence_threshold_for_calling 30 "
+                  ."--disable_auto_index_creation_and_locking_when_reading_rods --num_threads %s "
                   . "--variant:VCF %s --variant:VCF %s -L %s -o %s",
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
                 $config->{gatk}, $config->{fasta},    $opts->{num_threads},
@@ -270,6 +271,7 @@ sub GenotypeGVCF {
             $cmd = sprintf(
                 "java -jar -Xmx%sg -XX:ParallelGCThreads=%s -Djava.io.tmpdir=%s "
                   . "%s/GenomeAnalysisTK.jar -T GenotypeGVCFs -R %s "
+                  . "--standard_min_confidence_threshold_for_calling 30 "
                   . "--disable_auto_index_creation_and_locking_when_reading_rods "
                   . "--num_threads %s --variant:VCF %s -L %s -o %s",
                 $opts->{xmx},    $opts->{gc_threads}, $config->{tmp},
