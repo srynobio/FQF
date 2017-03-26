@@ -65,7 +65,7 @@ sub gvcf_pbgzip_tabix {
     $self->pull;
 
     my $config = $self->class_config;
-    my $opts   = $self->tool_options('gvcf_bgzip');
+    my $opts   = $self->tool_options('gvcf_pbgzip_tabix');
 
     my $combine_file = $self->file_retrieve;
     my @gvcfs = grep { $_ =~ /g.vcf$/ } @{$combine_file};
@@ -88,7 +88,7 @@ sub gvcf_pbgzip_tabix {
         $self->file_store($tabix_output);
 
         my $cmd = sprintf( "pbgzip -p %s %s ; tabix -p vcf %s",
-            $config->{processors}, $gvcf, $gz_output
+            $opts->{processors}, $gvcf, $gz_output
         );
         push @cmds, $cmd;
     }
