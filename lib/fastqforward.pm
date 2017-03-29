@@ -266,7 +266,7 @@ sub bam2gvcf {
     foreach my $bam ( @{$files} ) {
         chomp $bam;
         next if ( $bam !~ /\.bam$/ );
-        next if ( $bam =~ /(DNA|theVoid)/ );
+        next if ( $bam =~ /(gerald|DNA|theVoid)/ );
         my $output = $self->output;
 
         my $f_parts = $self->file_frags($bam);
@@ -315,7 +315,7 @@ sub lossless_valadate {
         chomp $bam;
 
         next if ( !$bam =~ /bam$/ );
-        next if ( $bam  =~ /(DNA|theVoid)/ );
+        next if ( $bam  =~ /(gerald|DNA|theVoid)/ );
         $bam =~ s/\.bam$//g;
 
         my $parts = $self->file_frags($bam);

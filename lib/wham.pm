@@ -43,7 +43,7 @@ sub whamg_svtyper {
         chomp $bam;
 
         next unless ( $bam =~ /bam$/ );
-        next if ( $bam =~ /(DNA|theVoid)/ );
+        next if ( $bam =~ /(gerald|DNA|theVoid)/ );
 
         my $file      = $self->file_frags($bam);
         my $wham_name = $file->{parts}[0] . ".unfiltered.genotype.wham.vcf";

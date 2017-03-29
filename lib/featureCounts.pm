@@ -25,7 +25,7 @@ sub featureCounts_run {
     foreach my $file ( @{$bams} ) {
         chomp $file;
         next unless ( $file =~ /\.bam$/ );
-        next if ( $file =~ /(DNA|theVoid)/ );
+        next if ( $file =~ /(gerald|DNA|theVoid)/ );
 
         ( my $indiv = $file ) =~ s/\.bam//;
         my $output = "$indiv.fcounts";

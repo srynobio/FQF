@@ -23,7 +23,7 @@ sub stats {
     my @cmds;
     foreach my $bam ( @{$sorted} ) {
         next unless ( $bam =~ /\.bam$/ );
-        next if ( $bam =~ /(DNA|theVoid)/ );
+        next if ( $bam =~ /(gerald|DNA|theVoid)/ );
         ( my $stat_file = $bam ) =~ s/\.bam/\.stats/;
         $self->file_store($stat_file);
 
@@ -50,7 +50,7 @@ sub flagstat {
     my @cmds;
     foreach my $sort ( @{$files} ) {
         next unless ( $sort =~ /\.bam$/ );
-        next if ( $sort =~ /(DNA|theVoid)/ );
+        next if ( $sort =~ /(gerald|DNA|theVoid)/ );
         ( my $flag_file = $sort ) =~ s/\.bam/.flagstat/;
 
         next if ( $self->file_exist($flag_file) );
