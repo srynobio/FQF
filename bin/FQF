@@ -17,8 +17,6 @@ Synopsis:
 
 Description:
 
-    FQF version 1.3.5
-
     FQF is a NGS pipeline created for the 
     Utah Genome Project (UGP) and The USTAR Center for Genetic Discovery (UCGD)
 
@@ -65,7 +63,7 @@ GetOptions(
 die $usage if $fqf_opts{help};
 
 ## add version
-$fqf_opts{pipeline_version} = '1.3.5';
+$fqf_opts{pipeline_version} = '1.3.6';
 
 ## version check
 if ( $fqf_opts{version} ) {

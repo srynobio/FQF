@@ -83,7 +83,7 @@ sub wham_pbgzip_tabix {
     $self->pull;
 
     my $config     = $self->class_config;
-    my $opts       = $self->tool_options('wham_bgzip');
+    my $opts       = $self->tool_options('wham_pbgzip_tabix');
     my $typer_file = $self->file_retrieve('whamg_svtyper');
 
     my @cmds;
@@ -95,7 +95,7 @@ sub wham_pbgzip_tabix {
         $self->file_store($output_file);
 
         my $cmd = sprintf( "pbgzip -p %s %s ; tabix -p vcf %s",
-            $config->{processors}, $vcf, $output_file
+            $opts->{processors}, $vcf, $output_file
         );
         push @cmds, $cmd;
     }
