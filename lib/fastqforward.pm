@@ -128,7 +128,8 @@ sub fastq2bam {
 
             my $cmd = sprintf(
                 "ibrun FastQforward.pl fastq2bam %s %s"
-                  . "-ref %s -known_indels %s -o %s -hyperthread",
+                  . "-ref %s -known_indels %s -o %s",
+                  ####. "-ref %s -known_indels %s -o %s -hyperthread",
                 $pair_format,  $single_format, $config->{fasta},
                 $self->indels, $path_bam
             );
@@ -181,7 +182,8 @@ sub fastq2bam {
 
             my $cmd =
               sprintf( "ibrun FastQforward.pl fastq2bam %s "
-                  . "-ref %s -known_indels %s -o %s -hyperthread",
+                  . "-ref %s -known_indels %s -o %s",
+                  ###. "-ref %s -known_indels %s -o %s -hyperthread",
                 $pair_format, $config->{fasta}, $self->indels, $path_bam );
             push @cmds, $cmd;
         }
@@ -243,7 +245,8 @@ sub fastq2bam {
 
             my $cmd =
               sprintf( "ibrun FastQforward.pl fastq2bam %s "
-                  . "-ref %s -known_indels %s -o %s -hyperthread",
+                  ###. "-ref %s -known_indels %s -o %s -hyperthread",
+                  . "-ref %s -known_indels %s -o %s",
                 $m_format, $config->{fasta}, $self->indels, $path_bam );
             push @cmds, $cmd;
         }
@@ -287,7 +290,8 @@ sub bam2gvcf {
 
         my $cmd = sprintf(
             "ibrun FastQforward.pl bam2gvcf -ref %s -i %s -o %s"
-              . " -include %s -known_snps %s -hyperthread",
+              . " -include %s -known_snps %s",
+              #####. " -include %s -known_snps %s -hyperthread",
             $config->{fasta}, $bam, $path_gvcf, $self->config->{main}->{region},
             $self->snps
         );
