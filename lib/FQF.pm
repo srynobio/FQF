@@ -232,7 +232,7 @@ sub deploy {
     my ( $self, $exeFile ) = @_;
 
     my @sub  = keys %{ $self->{bundle} };
-    my $jpn  = $self->config->{ $sub[0] }->{jps} || '1';
+###    my $jps  = $self->config->{ $sub[0] }->{jps} || '1';
     my $opts = $self->tool_options( $sub[0] );
 
     ## clean up old sbatch scripts
@@ -240,9 +240,9 @@ sub deploy {
 
     ## get runtime or set default
     if ( !$opts->{runtime} ) {
-        $self->WARN("runtime not given setting default to 10:00:00.");
+        $self->WARN("runtime not given setting default to 8:00:00.");
     }
-    my $runtime = $opts->{runtime} || '10:00:00';
+    my $runtime = $opts->{runtime} || '8:00:00';
 
     ## set min memory.
     my $min_memory = $opts->{mm} || 20;
@@ -258,7 +258,7 @@ sub deploy {
     if ( !$opts->{jps} ) {
         $self->WARN("Setting jps to default of 1.");
     }
-    my $jps = $opts->{jps} || 1;
+    my $jps = $opts->{jps} || 0;
 
     ## set node per sbatch job
     if ( !$opts->{nps} ) {
@@ -277,11 +277,10 @@ sub deploy {
     }
     else {
         $salvoCmd =
-          sprintf( 
-              "Salvo -cf %s -m idle "
-              . "-r %s -j %s -jps %s -nps %s -mm %d -concurrent -hyperthread",
-            $exeFile, $runtime, $sub[0], $jps, $nps, $min_memory 
-        );
+          sprintf( "Salvo -cf %s -m idle "
+              . "-r %s -j %s -jps %s -nps %s -mm %d -concurrent",
+                $exeFile, $runtime, $sub[0], $jps, $nps, $min_memory
+            );
     }
 
     say "Salvo command: $salvoCmd";
