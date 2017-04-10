@@ -112,7 +112,11 @@ sub uncompress {
     my @cmds;
     foreach my $file ( @{$fastqs} ) {
         chomp $file;
-        next unless ( $file =~ /(fastq.gz|fq.gz)/ );
+        next unless ( $file =~ /(fastq.gz$|fq.gz$)/ );
+        if ( $file =~ /\~$/ ) {
+            $self->ERROR("bam2fastq did not finishes processing file: $file.");
+            exit(1);
+        }
         ( my $output = $file ) =~ s/\.gz//;
 
         my $found = $self->file_exist($output);
