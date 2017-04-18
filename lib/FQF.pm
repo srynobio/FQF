@@ -278,7 +278,7 @@ sub deploy {
     else {
         $salvoCmd =
           sprintf( "Salvo -cf %s -m idle "
-              . "-r %s -j %s -jps %s -nps %s -mm %d -concurrent",
+              . "-r %s -j %s -jps %s -nps %s -mm %d",
                 $exeFile, $runtime, $sub[0], $jps, $nps, $min_memory
             );
     }
