@@ -29,7 +29,7 @@ sub bam2fastq {
 
         my $output = $self->output;
 
-        my $cmd = sprintf( "bam2fastq.pl %s -c %s %s %s",
+        my $cmd = sprintf( "bam2fastq.pl %s -c %s %s -id %s",
             $file, $opts->{cpu}, $opts->{command_string}, $output
         );
         push @cmds, $cmd;
