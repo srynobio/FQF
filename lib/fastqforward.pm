@@ -222,7 +222,7 @@ sub fastq2bam {
                 ## FQF will make these output files for you.
                 ## created here to add to object.
 
-                my $path_bam = $output . $bam_name;
+                $path_bam = $output . $bam_name;
 
                 # store the output files.
                 $self->file_store($path_bam);
