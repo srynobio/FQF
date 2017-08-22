@@ -327,6 +327,7 @@ sub CatVariants_Genotype {
 
     my $output       = $self->output;
     my $final_output = $output . $config->{fqf_id} . '_cat_genotyped.vcf.gz';
+    $self->file_store($final_output);
 
     my $cmd = sprintf(
         "java -cp %s/GenomeAnalysisTK.jar org.broadinstitute.gatk.tools.CatVariants -R %s "
