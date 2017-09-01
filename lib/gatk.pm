@@ -220,7 +220,7 @@ sub GenotypeGVCF {
           or $self->ERROR('Could not find/open background directory');
 
         foreach my $back ( $BK->read ) {
-            next unless ( $back =~ /Background.vcf$/ );
+            next unless ( $back =~ /Background.vcf.gz$/ );
             chomp $back;
             my $fullpath = $config->{backgrounds} . "/$back";
             push @backs, $fullpath;
