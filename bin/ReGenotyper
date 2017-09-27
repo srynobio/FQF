@@ -76,7 +76,7 @@ foreach my $c_file ( readdir $CFG ) {
         "perl -p -i -e 's|^backgrounds:|backgrounds:$background|' $full_path/$c_file"
     );
     my $region_cmd = sprintf(
-        "perl -p -i -e 's|^region:|region:/scratch/ucgd/lustre/ugpuser/ucgd_data/Regions/FQF.Region.bed|' $full_path/$c_file"
+        "perl -p -i -e 's|^region:|region:/scratch/ucgd/lustre/ugpuser/ucgd_data/Regions/UCGD.WGS.Region.bed|' $full_path/$c_file"
     );
 
     # run commands.

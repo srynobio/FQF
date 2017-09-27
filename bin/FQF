@@ -10,7 +10,8 @@ use Getopt::Long;
 my $usage = << "EOU";
 
 Synopsis:
-    ./FQF -cfg <FILE> --run
+    ./FQF -cfg [FILE] --run 
+    ./FQF -cfg [FILE] -f [FILE] --run
     ./FQF -ec
     ./FQF -fc
     ./FQF -clean
@@ -32,7 +33,7 @@ Additional options:
     --run, -r               Will run the FQF pipeline.
                             When this option is off a display of commands will be piped to STDOUT.
 
-    --qstat_limit, -ql      Limit to the number of qstat jobs to launch at one time. [DEFAULT 50]
+    --file, -f              Input file containing files to start from.
 
     --error_check, -ec      Run quick check of log files for run errors.
 
@@ -63,7 +64,7 @@ GetOptions(
 die $usage if $fqf_opts{help};
 
 ## add version
-$fqf_opts{pipeline_version} = '1.3.7';
+$fqf_opts{pipeline_version} = '1.3.8';
 
 ## version check
 if ( $fqf_opts{version} ) {
