@@ -127,7 +127,7 @@ sub fastq2bam {
               "-align \'Files=$pair1,$pair2;Type=PAIRED;RG=$r_group\'";
 
             my $cmd = sprintf(
-                "ibrun FastQforward.pl fastq2bam %s %s"
+                "ibrun perl -S FastQforward.pl fastq2bam %s %s"
                   . "-ref %s -known_indels %s -o %s",
                   ####. "-ref %s -known_indels %s -o %s -hyperthread",
                 $pair_format,  $single_format, $config->{fasta},
@@ -181,7 +181,7 @@ sub fastq2bam {
             }
 
             my $cmd =
-              sprintf( "ibrun FastQforward.pl fastq2bam %s "
+              sprintf( "ibrun perl -S FastQforward.pl fastq2bam %s "
                   . "-ref %s -known_indels %s -o %s",
                   ###. "-ref %s -known_indels %s -o %s -hyperthread",
                 $pair_format, $config->{fasta}, $self->indels, $path_bam );
@@ -244,7 +244,7 @@ sub fastq2bam {
             }
 
             my $cmd =
-              sprintf( "ibrun FastQforward.pl fastq2bam %s "
+              sprintf( "ibrun perl -S FastQforward.pl fastq2bam %s "
                   ###. "-ref %s -known_indels %s -o %s -hyperthread",
                   . "-ref %s -known_indels %s -o %s",
                 $m_format, $config->{fasta}, $self->indels, $path_bam );
@@ -289,7 +289,7 @@ sub bam2gvcf {
         $self->file_store($path_gvcf);
 
         my $cmd = sprintf(
-            "ibrun FastQforward.pl bam2gvcf -ref %s -i %s -o %s"
+            "ibrun perl -S FastQforward.pl bam2gvcf -ref %s -i %s -o %s"
               . " -include %s -known_snps %s",
               #####. " -include %s -known_snps %s -hyperthread",
             $config->{fasta}, $bam, $path_gvcf, $self->config->{main}->{region},
