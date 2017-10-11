@@ -345,7 +345,7 @@ sub VariantRecalibrator_SNP {
 
     my $config  = $self->class_config;
     my $opts    = $self->tool_options('VariantRecalibrator_SNP');
-    my $files   = $self->file_retrieve('CatVariants_Genotype');
+    my $files   = $self->file_retrieve;
     my @genotpd = grep { /_cat_genotyped.vcf.gz$/ } @{$files};
     my $output  = $self->output;
 
