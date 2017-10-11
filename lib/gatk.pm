@@ -385,7 +385,7 @@ sub VariantRecalibrator_INDEL {
 
     my $config  = $self->class_config;
     my $opts    = $self->tool_options('VariantRecalibrator_INDEL');
-    my $files   = $self->file_retrieve('CatVariants_Genotype');
+    my $files   = $self->file_retrieve;
     my @genotpd = grep { /_cat_genotyped.vcf.gz$/ } @{$files};
     my $output  = $self->output;
 
@@ -430,10 +430,10 @@ sub ApplyRecalibration_SNP {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('ApplyRecalibration_SNP');
 
-    my $files         = $self->file_retrieve('CatVariants_Genotype');
-    my @genotpd     = grep { $_ =~ /cat_genotyped.vcf.gz$/ } @{$files};
-    my @recal_file  = grep { $_ =~ /snp_recal$/ } @{$files};
-    my @tranch_file = grep { $_ =~ /snp_tranches$/ } @{$files};
+    my $files         = $self->file_retrieve;
+    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf.gz$/ } @{$files};
+    my @recal_file  = grep { $_ =~ /_snp_recal$/ } @{$files};
+    my @tranch_file = grep { $_ =~ /_snp_tranches$/ } @{$files};
 
     unless ( @genotpd && @recal_file && @tranch_file ) {
         $self->ERROR("Needed ApplyRecalibration files not found!");
@@ -469,10 +469,10 @@ sub ApplyRecalibration_INDEL {
     my $config = $self->class_config;
     my $opts   = $self->tool_options('ApplyRecalibration_INDEL');
 
-    my $files  = $self->file_retrieve('CatVariants_Genotype');
-    my @genotpd     = grep { $_ =~ /cat_genotyped.vcf.gz$/ } @{$files};
-    my @recal_file  = grep { $_ =~ /indel_recal$/ } @{$files};
-    my @tranch_file = grep { $_ =~ /indel_tranches$/ } @{$files};
+    my $files  = $self->file_retrieve;
+    my @genotpd     = grep { $_ =~ /_cat_genotyped.vcf.gz$/ } @{$files};
+    my @recal_file  = grep { $_ =~ /_indel_recal$/ } @{$files};
+    my @tranch_file = grep { $_ =~ /_indel_tranches$/ } @{$files};
 
     unless ( @genotpd && @recal_file && @tranch_file ) {
         $self->ERROR("Needed ApplyRecalibration files not found!");
