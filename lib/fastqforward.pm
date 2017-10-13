@@ -52,6 +52,15 @@ sub fastq2bam {
     my $opts   = $self->tool_options('fastq2bam');
     my $files  = $self->file_retrieve('uncompress');
 
+    ## set the version of fastqforward to run.
+    my $version;
+    if ($opts->{version} eq 'gatk') {
+        $version = '';
+    }
+    elsif ($opts->{version} eq 'sentieon') {
+       $version = '-sentieon';
+   }
+
     my %id_list;
     foreach my $fq ( @{$files} ) {
         chomp $fq;
@@ -128,10 +137,9 @@ sub fastq2bam {
 
             my $cmd = sprintf(
                 "ibrun perl -S FastQforward.pl fastq2bam %s %s"
-                  . "-ref %s -known_indels %s -o %s",
-                  ####. "-ref %s -known_indels %s -o %s -hyperthread",
+                  . "-ref %s -known_indels %s -o %s %s",
                 $pair_format,  $single_format, $config->{fasta},
-                $self->indels, $path_bam
+                $self->indels, $path_bam, $version
             );
             push @cmds, $cmd;
         }
@@ -182,9 +190,9 @@ sub fastq2bam {
 
             my $cmd =
               sprintf( "ibrun perl -S FastQforward.pl fastq2bam %s "
-                  . "-ref %s -known_indels %s -o %s",
-                  ###. "-ref %s -known_indels %s -o %s -hyperthread",
-                $pair_format, $config->{fasta}, $self->indels, $path_bam );
+                  . "-ref %s -known_indels %s -o %s %s",
+                $pair_format, $config->{fasta}, $self->indels, $path_bam, $version
+            );
             push @cmds, $cmd;
         }
 
@@ -245,9 +253,9 @@ sub fastq2bam {
 
             my $cmd =
               sprintf( "ibrun perl -S FastQforward.pl fastq2bam %s "
-                  ###. "-ref %s -known_indels %s -o %s -hyperthread",
-                  . "-ref %s -known_indels %s -o %s",
-                $m_format, $config->{fasta}, $self->indels, $path_bam );
+                  . "-ref %s -known_indels %s -o %s %s",
+                $m_format, $config->{fasta}, $self->indels, $path_bam, $version
+            );
             push @cmds, $cmd;
         }
     }

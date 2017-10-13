@@ -49,7 +49,7 @@ die $usage if $c_opts{help};
 die $usage unless ($c_opts{run});
 
 my $dir = getcwd;
-my (@gvcfs, @bams, @finalVCF, @logFiles, @reports, @trashCan, @snpeff, @flagstat, @fcounts, @stats, @wham, @fastqc);
+my (@gvcfs, @bams, @primary, @finalVCF, @logFiles, @reports, @trashCan, @snpeff, @flagstat, @fcounts, @stats, @wham, @fastqc);
 finddepth(
     sub {
         no warnings;
@@ -90,6 +90,10 @@ finddepth(
         }
         if ( $file =~ /(bam$|bam.bai$)/) {
             push @bams, abs_path($file);
+            next;
+        }
+        if ( $file =~ /DNA|RNA/ ) {
+            push @primary, abs_path($file);
             next;
         }
         if ( $file =~ /(FQF-.*vcf.gz$|FQF-.*vcf.gz.tbi$)/ ) {
@@ -133,6 +137,7 @@ make_path(
 say "Moving data into correct directory structure...";
 map { move( $_, 'VCF/GVCFs') } @gvcfs;
 map { move( $_, 'Data/PolishedBams') } @bams;
+map { move( $_, 'Data/Primary_Data') } @primary;
 map { move( $_, 'VCF/Complete') } @finalVCF;
 map { move( $_, 'Reports/RunLogs') } @logFiles;
 map { move( $_, 'Reports') } @reports;
