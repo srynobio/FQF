@@ -57,7 +57,7 @@ my $gvcf_path = $result . '/UGP/VCF/GVCFs';
 
 mkdir $project;
 my $full_path = abs_path($project);
-`ln -s $gvcf_path/*g.vcf $full_path`;
+`ln -s $gvcf_path/*g.vcf* $full_path`;
 
 my $epoch  = time;
 my $fqf_id = 'FQF-1.2.1_' . $project . '_Longevity_' . $epoch;
