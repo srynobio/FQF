@@ -28,8 +28,9 @@ sub _build_indels {
 
     $self->ERROR('Issue building known indels from file') unless ($knowns);
 
-    my $k_indels = join( ',', @{$knowns} );
-    $self->indels($k_indels);
+#    my $k_indels = @{$knowns}[0];
+#    $self->indels($k_indels);
+    $self->indels($self->class_config->{known_indels});
 }
 
 ##-----------------------------------------------------------
@@ -317,9 +318,9 @@ sub lossless_valadate {
 
     my $config = $self->class_config;
     my $opts   = $self->tool_options('lossless_valadate');
-    my $files  = $self->file_retrieve('fastq2bam');
+    my $files  = $self->file_retrieve;
 
-    my @fqs  = grep { $_ =~ /fastq$/ } @{$files};
+    my @fqs  = grep { $_ =~ /(fastq$|fq$)/ } @{$files};
     my @bams = grep { $_ =~ /bam$/ } @{$files};
 
     my @cmds;
@@ -333,9 +334,11 @@ sub lossless_valadate {
         my $parts = $self->file_frags($bam);
         my @match_fqs = grep { $_ =~ /$parts->{name}/ } @fqs;
 
-        my $cmd = sprintf( "lossless_validator.pl -c %s %s %s %s > %s",
-            $opts->{cpu}, "$bam.bam", $match_fqs[0], $match_fqs[1],
-            "$bam.lossless.result" );
+        my $cmd = sprintf(
+            "lossless_validator.pl -c %s %s %s > %s",
+            $opts->{cpu}, "$bam.bam", join( " ", @match_fqs ),
+            "$bam.lossless.result"
+        );
         push @cmds, $cmd;
     }
     $self->bundle( \@cmds );
