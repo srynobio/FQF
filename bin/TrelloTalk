@@ -72,8 +72,8 @@ unless ( $talk_opts{project} and $talk_opts{action} ) {
 
 ## create new trello api connect.
 my $trello = WWW::Trello::Lite->new(
-    key   => '058fffb6db2cac19121daea62134917b',
-    token => '4c38469f76b7c0553769bcb069970c33c0b809f4c5af59f3a1819f6d00518119',
+    key   => '***************************',
+    token => '*************************************',
 );
 
 ## current time
